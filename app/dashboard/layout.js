@@ -14,18 +14,18 @@ export default async function DashboardLayout({ children }) {
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen flex-col bg-slate-50 md:flex-row">
       <Sidebar />
-      <div className="flex-1">
-        <header className="border-b border-slate-200 bg-white px-6 py-4 print:hidden">
-          <div className="flex items-center justify-between">
+      <div className="min-w-0 flex-1">
+        <header className="border-b border-slate-200 bg-white px-4 py-3 print:hidden sm:px-6 sm:py-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <span className="text-lg font-semibold text-slate-800">My Business</span>
             <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-brand-700">
               Testing access
             </span>
           </div>
         </header>
-        <main className="p-6">{children}</main>
+        <main className="min-w-0 p-4 sm:p-6">{children}</main>
       </div>
     </div>
   );

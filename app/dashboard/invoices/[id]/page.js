@@ -52,7 +52,7 @@ export default async function InvoiceDetailPage({ params }) {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <div className="mb-4 flex flex-wrap justify-end gap-3 print:hidden">
+      <div className="mb-4 flex flex-wrap justify-start gap-3 print:hidden sm:justify-end">
         {(!isQuote && invoice.status === 'draft') ? (
           <IssueInvoiceButton invoiceId={invoice.id} />
         ) : (
@@ -70,7 +70,7 @@ export default async function InvoiceDetailPage({ params }) {
         {isQuote && <ConvertQuoteButton invoiceId={invoice.id} />}
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm" id="invoice-print">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-8" id="invoice-print">
         <div className="mb-8 flex items-start justify-between gap-4">
           <div>
             <div className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">{isQuote ? 'Quote / estimate' : 'Invoice'}</div>
@@ -101,8 +101,8 @@ export default async function InvoiceDetailPage({ params }) {
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-slate-200">
-          <table className="w-full text-left text-sm">
+        <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <table className="w-full min-w-[560px] text-left text-sm">
             <thead className="bg-slate-50 text-slate-500">
               <tr>
                 <th className="px-4 py-3 font-medium">Description</th>

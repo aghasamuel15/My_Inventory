@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { createClient } from '../lib/supabaseClient';
 
 const links = [
@@ -20,6 +21,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -28,13 +30,25 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="w-64 shrink-0 border-r border-slate-200 bg-white print:hidden">
-      <div className="border-b border-slate-200 px-5 py-5 text-xl font-black text-brand-700">SME Tracker</div>
-      <nav className="space-y-1 px-3 py-4">
+    <aside className="w-full shrink-0 border-b border-slate-200 bg-white print:hidden md:min-h-screen md:w-64 md:border-b-0 md:border-r">
+      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4 md:px-5 md:py-5">
+        <span className="text-xl font-black text-brand-700">SME Tracker</span>
+        <button
+          type="button"
+          className="btn-secondary px-3 py-2 text-sm md:hidden"
+          aria-expanded={menuOpen}
+          aria-controls="dashboard-navigation"
+          onClick={() => setMenuOpen((open) => !open)}
+        >
+          {menuOpen ? 'Close menu' : 'Menu'}
+        </button>
+      </div>
+      <nav id="dashboard-navigation" className={`${menuOpen ? 'block' : 'hidden'} space-y-1 px-3 py-3 md:block md:py-4`}>
         {links.map((link) => (
           <Link
             key={link.href}
             href={link.href}
+            onClick={() => setMenuOpen(false)}
             className={`block rounded-xl px-4 py-2 text-sm font-medium ${
               pathname === link.href
                 ? 'bg-brand-50 text-brand-700'
@@ -45,7 +59,7 @@ export default function Sidebar() {
           </Link>
         ))}
       </nav>
-      <div className="border-t border-slate-200 p-4">
+      <div className={`${menuOpen ? 'block' : 'hidden'} border-t border-slate-200 p-4 md:block`}>
         <button onClick={handleLogout} className="btn-secondary w-full">
           Log out
         </button>
