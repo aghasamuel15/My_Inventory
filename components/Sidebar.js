@@ -45,7 +45,7 @@ export default function Sidebar() {
 
   return (
     <>
-      <aside className="relative z-40 w-full shrink-0 border-b border-slate-200 bg-white print:hidden md:min-h-screen md:w-64 md:border-b-0 md:border-r">
+      <aside className="w-full shrink-0 border-b border-slate-200 bg-white print:hidden md:min-h-screen md:w-64 md:border-b-0 md:border-r">
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4 md:px-5 md:py-5">
           <div className="flex items-center gap-3">
             <button
@@ -60,7 +60,7 @@ export default function Sidebar() {
             <span className="text-xl font-black text-brand-700">SME Tracker</span>
           </div>
         </div>
-        <nav id="dashboard-navigation" className={`${menuOpen ? 'fixed inset-x-3 bottom-[5.5rem] z-50 rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-xl' : 'hidden'} max-h-[70vh] overflow-y-auto space-y-1 md:static md:block md:border-0 md:shadow-none md:py-4`}>
+        <nav id="dashboard-navigation" className={`${menuOpen ? 'block max-h-[calc(100dvh-11rem)] overflow-y-auto border-t border-slate-100 px-3 py-3' : 'hidden'} space-y-1 md:block md:max-h-none md:overflow-visible md:border-0 md:py-4`}>
           {links.map((link) => (
             <Link
               key={link.href}
