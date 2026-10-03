@@ -15,16 +15,12 @@ export default async function DashboardLayout({ children }) {
 
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('business_name, subscription_status')
+    .select('business_name')
     .eq('id', user.id)
     .maybeSingle();
 
   if (profileError) {
-    console.error('Could not verify dashboard access:', profileError.message);
-    redirect('/pricing?status=access_check_failed');
-  }
-  if (profile?.subscription_status !== 'active') {
-    redirect('/pricing?status=payment_required');
+    console.error('Could not load business profile:', profileError.message);
   }
 
   const businessName = profile?.business_name?.trim() || 'My Business';
