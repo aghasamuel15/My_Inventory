@@ -1,3 +1,5 @@
+'use client';
+
 function formatNaira(value) {
   return `₦${Number(value || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 }
