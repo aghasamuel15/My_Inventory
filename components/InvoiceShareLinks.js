@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+
 function formatNaira(value) {
   return `₦${Number(value || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 }
@@ -12,21 +14,54 @@ function normalizePhone(phone) {
 }
 
 export default function InvoiceShareLinks({ token, invoiceNumber, balance, phone }) {
+  const [shareError, setShareError] = useState('');
+
   if (!token) return null;
 
-  function handleShare() {
-    const payUrl = new URL(`/invoice/pay/${encodeURIComponent(token)}`, window.location.origin).toString();
-    const message = `Hello, please find invoice ${invoiceNumber}. Balance due: ${formatNaira(balance)}. Pay securely or view invoice: ${payUrl}`;
+  async function handleShare() {
+    setShareError('');
+    const baseUrl = window.location.origin;
+    const pdfUrl = new URL(`/api/invoices/public/${encodeURIComponent(token)}`, baseUrl).toString();
+    const payUrl = new URL(`/invoice/pay/${encodeURIComponent(token)}`, baseUrl).toString();
+    const message = `Hello, please find invoice ${invoiceNumber}. Balance due: ${formatNaira(balance)}. Pay securely: ${payUrl}`;
+    const whatsappMessage = `${message}\nDownload invoice PDF: ${pdfUrl}`;
     const whatsapp = new URL('https://wa.me/');
     const phoneNumber = normalizePhone(phone);
+    let fallbackMessage = 'This browser cannot attach the PDF directly. WhatsApp will open with a link to download it.';
     if (phoneNumber) whatsapp.pathname = `/${phoneNumber}`;
-    whatsapp.searchParams.set('text', message);
+    whatsapp.searchParams.set('text', whatsappMessage);
+
+    if (typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && typeof File !== 'undefined') {
+      try {
+        const response = await fetch(pdfUrl);
+        if (!response.ok) {
+          throw new Error(`Could not retrieve the invoice PDF (HTTP ${response.status}).`);
+        }
+
+        const pdf = await response.blob();
+        const safeInvoiceNumber = String(invoiceNumber || 'invoice').replace(/[^\w.-]+/g, '-');
+        const file = new File([pdf], `invoice-${safeInvoiceNumber}.pdf`, { type: 'application/pdf' });
+
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: `Invoice ${invoiceNumber}`, text: message });
+          return;
+        }
+      } catch (error) {
+        if (error.name === 'AbortError') return;
+        fallbackMessage = 'Could not attach the PDF directly. WhatsApp will open with a link to download it instead.';
+      }
+    }
+
+    setShareError(fallbackMessage);
     window.open(whatsapp.toString(), '_blank', 'noopener,noreferrer');
   }
 
   return (
-    <button type="button" onClick={handleShare} className="btn-secondary text-sm">
-      Share via WhatsApp
-    </button>
+    <div>
+      <button type="button" onClick={handleShare} className="btn-secondary text-sm">
+        Share via WhatsApp
+      </button>
+      {shareError && <p role="alert" className="mt-2 max-w-xs text-xs text-red-600">{shareError}</p>}
+    </div>
   );
 }
