@@ -130,6 +130,9 @@ export default function InventoryPage() {
     const targetStock = Number(product.low_stock_threshold) + Number(recentSalesByProduct[product.id] || 0);
     return Math.max(0, Math.ceil((targetStock - Number(product.quantity)) * 100) / 100);
   };
+  const lowStockProducts = products
+    .filter((product) => Number(product.quantity) <= Number(product.low_stock_threshold))
+    .sort((a, b) => suggestedRestock(b) - suggestedRestock(a));
 
   function useRestockSuggestion(product) {
     const quantity = suggestedRestock(product);
@@ -149,6 +152,41 @@ export default function InventoryPage() {
           {lowStockCount ? `${lowStockCount} item${lowStockCount === 1 ? '' : 's'} at or below reorder level` : 'Stock levels healthy'}
         </div>
       </div>
+
+      {lowStockCount > 0 ? (
+        <section aria-label="Low stock alerts" className="card mb-6 border-amber-200 bg-amber-50/70">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h2 className="text-lg font-bold text-amber-950">Reorder alerts</h2>
+              <p className="mt-1 text-sm text-amber-900">Suggestions cover the last 30 days of sales plus your low-stock threshold.</p>
+            </div>
+            <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900">
+              {lowStockCount} product{lowStockCount === 1 ? '' : 's'} need attention
+            </span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {lowStockProducts.map((product) => (
+              <article key={product.id} className="rounded-xl border border-amber-200 bg-white p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="font-semibold text-slate-900">{product.name}</h3>
+                  <span className="shrink-0 text-sm font-bold text-amber-800">{product.quantity} {product.unit}</span>
+                </div>
+                <p className="mt-1 text-xs text-slate-500">Reorder level: {product.low_stock_threshold} {product.unit}</p>
+                <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
+                  <span className="text-sm font-semibold text-amber-900">Suggested: {suggestedRestock(product)} {product.unit}</span>
+                  <button type="button" onClick={() => useRestockSuggestion(product)} className="rounded-lg bg-brand-700 px-3 py-2 text-xs font-semibold text-white hover:bg-brand-800">
+                    Restock
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : (
+        <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-800">
+          All tracked products are above their reorder levels.
+        </div>
+      )}
 
       <form onSubmit={handleCreate} className="card mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <h2 className="text-lg font-bold text-slate-900 sm:col-span-2 xl:col-span-4">Add product</h2>

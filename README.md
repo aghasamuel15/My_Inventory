@@ -5,6 +5,9 @@ A Nigerian SME finance tracker for recording sales, expenses, customer debt, inv
 ## Features
 - Record daily sales
 - Track products, stock levels, restocks, removals, and low-stock alerts
+- Show prioritized reorder alerts and suggested restock quantities
+- Record whether sales and expenses affect cash or bank balances
+- Reconcile cash and bank accounts by date range, opening balance, and actual closing balance
 - Automatically deduct inventory when a product sale is recorded
 - Record expenses
 - Track customers who owe money
@@ -36,7 +39,7 @@ A Nigerian SME finance tracker for recording sales, expenses, customer debt, inv
 5. Open http://localhost:3000
 
 ## Supabase database
-For a new project, run the entire `supabase/schema.sql`, then `supabase/invoice_workflow.sql`, then `supabase/mobile_features.sql` in the Supabase SQL Editor. For an existing project that already has the earlier schema and invoice workflow, run `supabase/mobile_features.sql` to enable private expense receipt storage and idempotent offline sales sync. In the SQL Editor, use Ctrl+A before Run; running only a selected excerpt will omit functions and policies defined later in the files. The scripts retain existing customer and sales data.
+For a new project, run the entire `supabase/schema.sql`, then `supabase/invoice_workflow.sql`, `supabase/mobile_features.sql`, and `supabase/cashbook_reconciliation.sql` in the Supabase SQL Editor. For an existing project, run `supabase/mobile_features.sql` if not already applied, then run `supabase/cashbook_reconciliation.sql` to enable cash/bank account tracking and reconciliations. In the SQL Editor, use Ctrl+A before Run; running only a selected excerpt will omit functions and policies defined later in the files. The scripts retain existing customer and sales data. Existing sales and expenses are marked “unassigned” because their payment account was not previously recorded; invoice payments are mapped to cash or bank based on their payment method, while “other” payments remain unassigned. Assign unassigned transactions in Cashbook before reconciling those periods.
 
 If you hit the exact error `Could not find the 'address' column of 'customers' in the schema cache`, run the minimal repair script in `supabase/repair_missing_customer_address.sql` first, then rerun the full schema script if needed. This ensures the column exists and forces PostgREST to refresh its schema cache.
 

@@ -21,6 +21,7 @@ export default function ExpensesPage() {
     expense_date: new Date().toISOString().slice(0, 10),
     category: '',
     description: '',
+    payment_account: 'cash',
   });
 
   async function load() {
@@ -87,6 +88,7 @@ export default function ExpensesPage() {
       expense_date: form.expense_date,
       category: form.category,
       description: form.description,
+      payment_account: form.payment_account,
     };
 
     if (!navigator.onLine) {
@@ -97,7 +99,7 @@ export default function ExpensesPage() {
         return;
       }
       setFormMessage('Expense saved on this device and will sync when you reconnect.');
-      setForm({ amount: '', expense_date: new Date().toISOString().slice(0, 10), category: '', description: '' });
+      setForm({ amount: '', expense_date: new Date().toISOString().slice(0, 10), category: '', description: '', payment_account: 'cash' });
       setReceiptFile(null);
       return;
     }
@@ -121,7 +123,7 @@ export default function ExpensesPage() {
         return;
       }
       setFormMessage('Expense saved on this device and will sync when you reconnect.');
-      setForm({ amount: '', expense_date: new Date().toISOString().slice(0, 10), category: '', description: '' });
+      setForm({ amount: '', expense_date: new Date().toISOString().slice(0, 10), category: '', description: '', payment_account: 'cash' });
       setReceiptFile(null);
       return;
     }
@@ -139,7 +141,7 @@ export default function ExpensesPage() {
         .upload(receiptPath, receiptFile, { contentType: receiptFile.type, upsert: false });
       if (uploadError) {
         setFormError(`Expense saved, but the receipt could not be uploaded: ${uploadError.message}`);
-        setForm({ amount: '', expense_date: new Date().toISOString().slice(0, 10), category: '', description: '' });
+        setForm({ amount: '', expense_date: new Date().toISOString().slice(0, 10), category: '', description: '', payment_account: 'cash' });
         setReceiptFile(null);
         await load();
         setSaving(false);
@@ -154,7 +156,7 @@ export default function ExpensesPage() {
       if (linkError) {
         const { error: cleanupError } = await supabase.storage.from('expense-receipts').remove([receiptPath]);
         setFormError(`Expense saved, but its receipt could not be linked: ${linkError.message}${cleanupError ? ` Receipt cleanup also failed: ${cleanupError.message}` : ''}`);
-        setForm({ amount: '', expense_date: new Date().toISOString().slice(0, 10), category: '', description: '' });
+        setForm({ amount: '', expense_date: new Date().toISOString().slice(0, 10), category: '', description: '', payment_account: 'cash' });
         setReceiptFile(null);
         await load();
         setSaving(false);
@@ -168,6 +170,7 @@ export default function ExpensesPage() {
         expense_date: new Date().toISOString().slice(0, 10),
         category: '',
         description: '',
+        payment_account: 'cash',
       });
       setReceiptFile(null);
       setFormMessage('Expense added.');
@@ -181,14 +184,21 @@ export default function ExpensesPage() {
       <h1 className="mb-6 text-2xl font-bold text-slate-900">Expenses</h1>
       <OfflineSyncStatus userId={userId} supabase={supabase} />
 
-      <form onSubmit={handleSubmit} className="card mb-8 grid gap-4 md:grid-cols-5">
+      <form onSubmit={handleSubmit} className="card mb-8 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         <div>
           <label className="label">Amount</label>
-          <input className="input" type="number" required value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+          <input className="input" type="number" min="0.01" step="0.01" required value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
         </div>
         <div>
           <label className="label">Date</label>
           <input className="input" type="date" required value={form.expense_date} onChange={(e) => setForm({ ...form, expense_date: e.target.value })} />
+        </div>
+        <div>
+          <label className="label">Paid from</label>
+          <select className="input" required value={form.payment_account} onChange={(event) => setForm({ ...form, payment_account: event.target.value })}>
+            <option value="cash">Cash</option>
+            <option value="bank">Bank</option>
+          </select>
         </div>
         <div>
           <label className="label">Category</label>
@@ -208,8 +218,8 @@ export default function ExpensesPage() {
             {saving ? 'Saving...' : 'Add expense'}
           </button>
         </div>
-        {formError && <p role="alert" className="md:col-span-5 text-sm text-red-700">{formError}</p>}
-        {formMessage && <p role="status" className="md:col-span-5 text-sm text-emerald-700">{formMessage}</p>}
+        {formError && <p role="alert" className="md:col-span-6 text-sm text-red-700">{formError}</p>}
+        {formMessage && <p role="status" className="md:col-span-6 text-sm text-emerald-700">{formMessage}</p>}
       </form>
 
       {loading ? (
@@ -217,12 +227,13 @@ export default function ExpensesPage() {
       ) : (
         <>
           <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:block">
-          <table className="w-full min-w-[560px] text-left text-sm">
+          <table className="w-full min-w-[680px] text-left text-sm">
             <thead>
               <tr className="border-b text-slate-500">
                 <th className="py-2">Date</th>
                 <th>Category</th>
                 <th>Description</th>
+                <th>Account</th>
                 <th>Receipt</th>
                 <th className="text-right">Amount</th>
               </tr>
@@ -233,13 +244,14 @@ export default function ExpensesPage() {
                   <td className="py-2">{expense.expense_date}</td>
                   <td>{expense.category || '—'}</td>
                   <td>{expense.description || '—'}</td>
+                  <td className="capitalize">{expense.payment_account === 'unassigned' ? 'Needs account' : expense.payment_account || 'Cash'}</td>
                   <td>{expense.receiptUrl ? <a href={expense.receiptUrl} target="_blank" rel="noreferrer" className="font-semibold text-brand-700 hover:underline">View photo</a> : '—'}</td>
                   <td className="text-right font-semibold text-red-600">{formatNaira(expense.amount)}</td>
                 </tr>
               ))}
               {expenses.length === 0 && (
                 <tr>
-                  <td colSpan="5" className="py-8 text-center text-slate-400">
+                  <td colSpan="6" className="py-8 text-center text-slate-400">
                     No expenses recorded yet.
                   </td>
                 </tr>
@@ -255,7 +267,7 @@ export default function ExpensesPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h2 className="break-words font-semibold text-slate-900">{expense.category || 'Expense'}</h2>
-                    <p className="mt-1 text-xs text-slate-500">{expense.expense_date}</p>
+                    <p className="mt-1 text-xs text-slate-500">{expense.expense_date} · Paid from {expense.payment_account === 'unassigned' ? 'account not set' : expense.payment_account || 'cash'}</p>
                   </div>
                   <span className="shrink-0 font-bold text-red-600">{formatNaira(expense.amount)}</span>
                 </div>

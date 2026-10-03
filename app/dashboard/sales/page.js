@@ -22,6 +22,7 @@ export default function SalesPage() {
     quantity: '1',
     sale_date: today(),
     description: '',
+    payment_account: 'cash',
   });
   const selectedProduct = products.find((product) => product.id === form.product_id);
   const saleTotal = Number(form.quantity || 0) * Number(selectedProduct?.selling_price || 0);
@@ -67,6 +68,7 @@ export default function SalesPage() {
       p_sale_date: form.sale_date,
       p_description: form.description || null,
       p_sale_id: saleId,
+      p_payment_account: form.payment_account,
     };
 
     if (!navigator.onLine) {
@@ -76,7 +78,7 @@ export default function SalesPage() {
         alert(queueError.message || 'Could not save this sale on your device.');
         return;
       }
-      setForm({ customer_id: '', product_id: '', quantity: '1', sale_date: today(), description: '' });
+      setForm({ customer_id: '', product_id: '', quantity: '1', sale_date: today(), description: '', payment_account: 'cash' });
       return;
     }
 
@@ -99,14 +101,14 @@ export default function SalesPage() {
           alert(queueError.message || 'Could not save this sale on your device.');
           return;
         }
-        setForm({ customer_id: '', product_id: '', quantity: '1', sale_date: today(), description: '' });
+        setForm({ customer_id: '', product_id: '', quantity: '1', sale_date: today(), description: '', payment_account: 'cash' });
         return;
       }
       alert(error.message);
       return;
     }
 
-    setForm({ customer_id: '', product_id: '', quantity: '1', sale_date: today(), description: '' });
+    setForm({ customer_id: '', product_id: '', quantity: '1', sale_date: today(), description: '', payment_account: 'cash' });
     await load();
   }
 
@@ -115,7 +117,7 @@ export default function SalesPage() {
       <h1 className="mb-6 text-2xl font-bold text-slate-900">Sales</h1>
       <OfflineSyncStatus userId={userId} supabase={supabase} />
 
-      <form onSubmit={handleSubmit} className="card mb-8 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <form onSubmit={handleSubmit} className="card mb-8 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         <div>
           <label className="label">Product</label>
           <select className="input" required value={form.product_id} onChange={(event) => setForm({ ...form, product_id: event.target.value })}>
@@ -144,10 +146,17 @@ export default function SalesPage() {
           <input className="input" type="date" required value={form.sale_date} onChange={(event) => setForm({ ...form, sale_date: event.target.value })} />
         </div>
         <div>
+          <label className="label">Paid into</label>
+          <select className="input" required value={form.payment_account} onChange={(event) => setForm({ ...form, payment_account: event.target.value })}>
+            <option value="cash">Cash</option>
+            <option value="bank">Bank</option>
+          </select>
+        </div>
+        <div>
           <label className="label">Description</label>
           <input className="input" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} />
         </div>
-        <div className="flex flex-wrap items-end gap-4 xl:col-span-5">
+        <div className="flex flex-wrap items-end gap-4 xl:col-span-6">
           <button type="submit" disabled={saving || !products.length} className="btn-primary w-full sm:w-auto">
             {saving ? 'Saving...' : 'Add sale'}
           </button>
@@ -161,13 +170,14 @@ export default function SalesPage() {
       ) : (
         <>
           <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:block">
-          <table className="w-full min-w-[680px] text-left text-sm">
+          <table className="w-full min-w-[800px] text-left text-sm">
             <thead>
               <tr className="border-b text-slate-500">
                 <th className="py-2">Date</th>
                 <th>Product</th>
                 <th>Qty</th>
                 <th>Customer</th>
+                <th>Account</th>
                 <th>Description</th>
                 <th className="text-right">Amount</th>
               </tr>
@@ -179,12 +189,13 @@ export default function SalesPage() {
                   <td>{sale.product_name || 'Untracked sale'}</td>
                   <td>{sale.quantity || 1}</td>
                   <td>{customers.find((customer) => customer.id === sale.customer_id)?.name || '—'}</td>
+                  <td className="capitalize">{sale.payment_account === 'unassigned' ? 'Needs account' : sale.payment_account || 'Cash'}</td>
                   <td>{sale.description || '—'}</td>
                   <td className="text-right font-semibold text-emerald-600">{formatNaira(sale.amount)}</td>
                 </tr>
               ))}
               {sales.length === 0 && (
-                <tr><td colSpan="6" className="py-8 text-center text-slate-400">No sales recorded yet.</td></tr>
+                <tr><td colSpan="7" className="py-8 text-center text-slate-400">No sales recorded yet.</td></tr>
               )}
             </tbody>
           </table>
@@ -197,7 +208,7 @@ export default function SalesPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h2 className="break-words font-semibold text-slate-900">{sale.product_name || 'Untracked sale'}</h2>
-                    <p className="mt-1 text-xs text-slate-500">{sale.sale_date}</p>
+                    <p className="mt-1 text-xs text-slate-500">{sale.sale_date} · Paid into {sale.payment_account === 'unassigned' ? 'account not set' : sale.payment_account || 'cash'}</p>
                   </div>
                   <span className="shrink-0 font-bold text-emerald-700">{formatNaira(sale.amount)}</span>
                 </div>

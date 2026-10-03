@@ -80,6 +80,7 @@ create table if not exists public.sales (
   unit_price numeric(12,2) not null default 0,
   cost_amount numeric(12,2) not null default 0,
   amount numeric(12,2) not null default 0,
+  payment_account text not null default 'cash' check (payment_account in ('cash', 'bank', 'unassigned')),
   sale_date date not null default current_date,
   description text,
   created_at timestamptz default now()
@@ -90,7 +91,20 @@ alter table public.sales
   add column if not exists product_name text,
   add column if not exists quantity numeric(12,2) not null default 1,
   add column if not exists unit_price numeric(12,2) not null default 0,
-  add column if not exists cost_amount numeric(12,2) not null default 0;
+  add column if not exists cost_amount numeric(12,2) not null default 0,
+  add column if not exists payment_account text;
+
+update public.sales set payment_account = 'unassigned' where payment_account is null;
+alter table public.sales alter column payment_account set default 'cash';
+alter table public.sales alter column payment_account set not null;
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'sales_payment_account_check' and conrelid = 'public.sales'::regclass) then
+    alter table public.sales add constraint sales_payment_account_check check (payment_account in ('cash', 'bank', 'unassigned'));
+  end if;
+end;
+$$;
 
 create index if not exists sales_user_date_idx on public.sales(user_id, sale_date desc);
 
@@ -102,9 +116,42 @@ create table if not exists public.expenses (
   category text,
   description text,
   receipt_path text,
+  payment_account text not null default 'cash' check (payment_account in ('cash', 'bank', 'unassigned')),
   created_at timestamptz default now()
 );
 alter table public.expenses add column if not exists receipt_path text;
+alter table public.expenses add column if not exists payment_account text;
+update public.expenses set payment_account = 'unassigned' where payment_account is null;
+alter table public.expenses alter column payment_account set default 'cash';
+alter table public.expenses alter column payment_account set not null;
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'expenses_payment_account_check' and conrelid = 'public.expenses'::regclass) then
+    alter table public.expenses add constraint expenses_payment_account_check check (payment_account in ('cash', 'bank', 'unassigned'));
+  end if;
+end;
+$$;
+
+create table if not exists public.cashbook_reconciliations (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  account text not null check (account in ('cash', 'bank')),
+  start_date date not null,
+  end_date date not null,
+  opening_balance numeric(14,2) not null,
+  sales_total numeric(14,2) not null,
+  expenses_total numeric(14,2) not null,
+  calculated_closing_balance numeric(14,2) not null,
+  actual_closing_balance numeric(14,2) not null,
+  variance numeric(14,2) not null,
+  notes text,
+  reconciled_at timestamptz not null default now(),
+  constraint cashbook_reconciliations_dates_check check (start_date <= end_date)
+);
+
+create index if not exists cashbook_reconciliations_user_date_idx
+  on public.cashbook_reconciliations(user_id, reconciled_at desc);
 
 do $$
 begin

@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useState } from 'react';
 import { createClient } from '../lib/supabaseClient';
+import dashboardNavigation from '../lib/dashboardNavigation';
 
 const NavIcon = ({ children, className = '' }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={`h-4 w-4 ${className}`} aria-hidden="true">
@@ -11,23 +11,10 @@ const NavIcon = ({ children, className = '' }) => (
   </svg>
 );
 
-const links = [
-  { href: '/dashboard', label: 'Overview' },
-  { href: '/dashboard/sales', label: 'Sales' },
-  { href: '/dashboard/inventory', label: 'Inventory' },
-  { href: '/dashboard/expenses', label: 'Expenses' },
-  { href: '/dashboard/customers', label: 'Customers' },
-  { href: '/dashboard/invoices', label: 'Invoices' },
-  { href: '/dashboard/invoices/recurring', label: 'Recurring invoices' },
-  { href: '/dashboard/reports', label: 'Reports' },
-  { href: '/dashboard/settings', label: 'Business profile' },
-];
-
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
-  const [menuOpen, setMenuOpen] = useState(false);
   const mobileLinks = [
     { href: '/dashboard', label: 'Home', icon: <NavIcon><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V20h14V9.5" /></NavIcon> },
     { href: '/dashboard/sales', label: 'Sales', icon: <NavIcon><path d="M4 18V8.5A1.5 1.5 0 0 1 5.5 7H18a2 2 0 0 1 2 2v9" /><path d="M4 15h16" /><path d="M7 12h3" /><path d="M7 7V5.5A1.5 1.5 0 0 1 8.5 4h7A1.5 1.5 0 0 1 17 5.5V7" /></NavIcon> },
@@ -47,25 +34,13 @@ export default function Sidebar() {
     <>
       <aside className="w-full shrink-0 border-b border-slate-200 bg-white print:hidden md:min-h-screen md:w-64 md:border-b-0 md:border-r">
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4 md:px-5 md:py-5">
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              className="btn-secondary px-3 py-2 text-sm md:hidden"
-              aria-expanded={menuOpen}
-              aria-controls="dashboard-navigation"
-              onClick={() => setMenuOpen((open) => !open)}
-            >
-              {menuOpen ? 'Close' : 'Menu'}
-            </button>
-            <span className="text-xl font-black text-brand-700">SME Tracker</span>
-          </div>
+          <span className="text-xl font-black text-brand-700">SME Tracker</span>
         </div>
-        <nav id="dashboard-navigation" className={`${menuOpen ? 'block max-h-[calc(100dvh-11rem)] overflow-y-auto border-t border-slate-100 px-3 py-3' : 'hidden'} space-y-1 md:block md:max-h-none md:overflow-visible md:border-0 md:py-4`}>
-          {links.map((link) => (
+        <nav id="dashboard-navigation" className="hidden space-y-1 md:block md:py-4">
+          {dashboardNavigation.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              onClick={() => setMenuOpen(false)}
               className={`block rounded-xl px-4 py-2 text-sm font-medium ${
                 pathname === link.href
                   ? 'bg-brand-50 text-brand-700'
@@ -87,7 +62,6 @@ export default function Sidebar() {
           <Link
             key={link.href}
             href={link.href}
-            onClick={() => setMenuOpen(false)}
             aria-current={pathname === link.href ? 'page' : undefined}
             className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-semibold ${
               isActiveLink(link.href) ? 'text-brand-700' : 'text-slate-500'
@@ -97,12 +71,10 @@ export default function Sidebar() {
             {link.label}
           </Link>
         ))}
-        <button
-          type="button"
-          aria-expanded={menuOpen}
-          aria-controls="dashboard-navigation"
-          onClick={() => setMenuOpen((open) => !open)}
-          className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-semibold ${menuOpen ? 'text-brand-700' : 'text-slate-500'}`}
+        <Link
+          href="/dashboard/more"
+          aria-current={pathname === '/dashboard/more' ? 'page' : undefined}
+          className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-semibold ${pathname === '/dashboard/more' ? 'text-brand-700' : 'text-slate-500'}`}
         >
           <span className="flex h-4 w-4 items-center justify-center">
             <NavIcon>
@@ -110,7 +82,7 @@ export default function Sidebar() {
             </NavIcon>
           </span>
           More
-        </button>
+        </Link>
       </nav>
     </>
   );
