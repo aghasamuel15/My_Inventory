@@ -295,7 +295,7 @@ export default function ReportsPage() {
             </>
           )}
         </div>
-      </div>
+      </section>
 
       {errorMessage && <div role="alert" className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errorMessage}</div>}
       {loading ? <div className="text-slate-500">Analyzing your business...</div> : summary && (
