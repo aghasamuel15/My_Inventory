@@ -67,9 +67,30 @@ export async function GET(request) {
     auth: { autoRefreshToken: false, persistSession: false },
   });
   const reminderDate = new Date().toISOString().slice(0, 10);
+  const { data: activeProfiles, error: activeProfilesError } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('subscription_status', 'active');
+  if (activeProfilesError) {
+    return NextResponse.json({ error: `Could not load active business accounts: ${activeProfilesError.message}` }, { status: 500 });
+  }
+  const activeUserIds = (activeProfiles || []).map((profile) => profile.id);
+  if (activeUserIds.length === 0) {
+    return NextResponse.json({
+      ok: true,
+      reminderDate,
+      sent: 0,
+      failed: 0,
+      skipped: 0,
+      generatedDrafts: 0,
+      recurringFailed: 0,
+    });
+  }
+
   const { data: invoices, error: invoicesError } = await supabase
     .from('invoices')
     .select('id, user_id, invoice_number, total, due_date, status, customer:customers(name, email), payments:invoice_payments(amount)')
+    .in('user_id', activeUserIds)
     .eq('document_type', 'invoice')
     .neq('status', 'draft')
     .lt('due_date', reminderDate)
@@ -174,6 +195,7 @@ export async function GET(request) {
   const { data: templates, error: templatesError } = await supabase
     .from('recurring_invoice_templates')
     .select('id')
+    .in('user_id', activeUserIds)
     .eq('active', true)
     .lte('next_issue_date', reminderDate);
   if (templatesError) {

@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '../../../../lib/supabaseAdmin';
 import { getInvoiceBalance } from '../../../../lib/invoiceBalance';
 import { sendInvoicePaymentReceipt } from '../../../../lib/invoiceReceipt';
+import { ACCESS_PAYMENT_PURPOSE, activateAccessPayment } from '../../../../lib/accessPayment';
 
 export const runtime = 'nodejs';
 
@@ -31,6 +32,21 @@ export async function POST(request) {
   if (event.event !== 'charge.success') return NextResponse.json({ ok: true, ignored: true });
 
   const transaction = event.data;
+  if (transaction?.metadata?.purpose === ACCESS_PAYMENT_PURPOSE) {
+    if (typeof transaction.reference !== 'string' || !/^ACCESS-[0-9a-f-]{36}$/i.test(transaction.reference)) {
+      return NextResponse.json({ error: 'Access payment reference is invalid.' }, { status: 400 });
+    }
+
+    try {
+      const supabase = createSupabaseAdminClient();
+      await activateAccessPayment(supabase, transaction);
+      return NextResponse.json({ ok: true });
+    } catch (error) {
+      console.error('Paystack access payment webhook processing failed:', error.message);
+      return NextResponse.json({ error: 'Access payment processing failed.' }, { status: 500 });
+    }
+  }
+
   const invoiceId = transaction?.metadata?.invoice_id;
   const reference = transaction?.reference;
   if (typeof invoiceId !== 'string' || typeof reference !== 'string' || !reference.startsWith('PAYSTACK-')) {

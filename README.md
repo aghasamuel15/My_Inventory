@@ -22,8 +22,7 @@ A Nigerian SME finance tracker for recording sales, expenses, customer debt, inv
 - Compare daily, weekly, monthly, and yearly sales, expenses, and profit
 - Rank top customers and best-selling products; review tracked product margins
 - Export report CSVs
-- Access gating with a ₦5,000 fee flow
-- Paystack-ready payment routes
+- Server-verified, one-time ₦5,000 access payment with database-enforced entitlements
 - Save sales and expenses offline and sync them when online
 - Attach private receipt photos to expense records
 - Send invoice payment reminders through WhatsApp
@@ -40,7 +39,7 @@ A Nigerian SME finance tracker for recording sales, expenses, customer debt, inv
 5. Open http://localhost:3000
 
 ## Supabase database
-For a new project, run the entire `supabase/schema.sql`, then `supabase/invoice_workflow.sql`, `supabase/mobile_features.sql`, and `supabase/cashbook_reconciliation.sql` in the Supabase SQL Editor. For an existing project, run `supabase/mobile_features.sql` if not already applied, then run `supabase/cashbook_reconciliation.sql` to enable cash/bank account tracking and reconciliations. In the SQL Editor, use Ctrl+A before Run; running only a selected excerpt will omit functions and policies defined later in the files. The scripts retain existing customer and sales data. Existing sales and expenses are marked “unassigned” because their payment account was not previously recorded; invoice payments are mapped to cash or bank based on their payment method, while “other” payments remain unassigned. Assign unassigned transactions in Cashbook before reconciling those periods. Enter the initial opening balance for each account on its first reconciliation; later opening balances carry forward automatically from the prior saved actual closing balance. Reconciliations auto-save after all transactions have been assigned and an actual closing balance is entered.
+For a new project, run the entire `supabase/schema.sql`, then `supabase/invoice_workflow.sql`, `supabase/mobile_features.sql`, `supabase/cashbook_reconciliation.sql`, and `supabase/access_entitlements.sql` in the Supabase SQL Editor. For an existing project, run any missing feature migrations first, then run `supabase/access_entitlements.sql` last. This final migration requires the tables and functions from the earlier scripts. Apply it before opening the app to customers: it makes payment status server-controlled and applies paid-access checks to tenant data, storage, and privileged write paths. The migration is safe to rerun. In the SQL Editor, use Ctrl+A before Run; running only a selected excerpt will omit functions and policies defined later in the files. The scripts retain existing customer and sales data. Existing sales and expenses are marked “unassigned” because their payment account was not previously recorded; invoice payments are mapped to cash or bank based on their payment method, while “other” payments remain unassigned. Assign unassigned transactions in Cashbook before reconciling those periods. Enter the initial opening balance for each account on its first reconciliation; later opening balances carry forward automatically from the prior saved actual closing balance. Reconciliations auto-save after all transactions have been assigned and an actual closing balance is entered.
 
 If you hit the exact error `Could not find the 'address' column of 'customers' in the schema cache`, run the minimal repair script in `supabase/repair_missing_customer_address.sql` first, then rerun the full schema script if needed. This ensures the column exists and forces PostgREST to refresh its schema cache.
 
@@ -48,13 +47,15 @@ The script requests a PostgREST schema-cache refresh. If Supabase still reports 
 
 ## Paystack API endpoints
 - POST /api/paystack/initialize
-- POST /api/paystack/verify
+- GET /api/paystack/verify (Paystack return URL; server-side verification)
+- POST /api/paystack/verify (authenticated status check)
 - POST /api/paystack/webhook
 - POST /api/invoices/pay/[token]/initialize
 - POST /api/invoices/pay/verify
 
 ## Deployment
 This project is set up for deployment to Vercel. Add the same environment variables in your Vercel project settings.
+Set `NEXT_PUBLIC_SITE_URL` to the deployed HTTPS origin, configure Paystack's webhook to `https://your-domain/api/paystack/webhook`, and set the server-only `ACCESS_FEE_KOBO` to the amount shown on the pricing page. Never expose `SUPABASE_SERVICE_ROLE_KEY` or `PAYSTACK_SECRET_KEY` as `NEXT_PUBLIC_*` variables. Apply `supabase/access_entitlements.sql` before accepting customer accounts or payments.
 
 ## Environment variables
 - NEXT_PUBLIC_SUPABASE_URL
@@ -70,7 +71,7 @@ This project is set up for deployment to Vercel. Add the same environment variab
 - PAYSTACK_SECRET_KEY
 - NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY
 - NEXT_PUBLIC_SITE_URL
-- NEXT_PUBLIC_ACCESS_FEE_KOBO
+- ACCESS_FEE_KOBO (server-only; defaults to 500000 kobo; keep aligned with the displayed fee)
 
 Invoices and quotes can be sent by email with a PDF attachment. Configure the SMTP values above and add each customer's email address. For Gmail SMTP, use `smtp.gmail.com` with port `465` (SSL) or `587` (STARTTLS), set `EMAIL_SMTP_USER` to the full Gmail address, and use a Google App Password—not the account sign-in password. App Passwords require 2-Step Verification. If Gmail returns `535-5.7.8`, generate a new App Password in the Google Account security settings, replace `EMAIL_SMTP_PASS` in Vercel, and redeploy; never share the password. An optional invoice download and Paystack checkout link requires a publicly reachable HTTPS `NEXT_PUBLIC_SITE_URL`; signed links expire after seven days. Paystack invoice checkout also requires `PAYSTACK_SECRET_KEY`; configure the Paystack dashboard webhook to call `/api/paystack/webhook` so completed payments are recorded even if the customer does not return to the site. Overdue reminders and recurring-draft generation run daily at 09:00 UTC. Set a long random `CRON_SECRET` in `.env.local` and Vercel; Vercel sends it to the scheduled endpoint. Recurring schedules only create drafts; review and issue them before sending. On Vercel, set `NEXT_PUBLIC_SITE_URL` to the production HTTPS URL and redeploy after changing environment variables. Keep SMTP, `CRON_SECRET`, signing, and Supabase service-role values server-side in `.env.local` and Vercel settings.
 

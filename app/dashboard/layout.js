@@ -13,11 +13,19 @@ export default async function DashboardLayout({ children }) {
     redirect('/login');
   }
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('business_name')
+    .select('business_name, subscription_status')
     .eq('id', user.id)
     .maybeSingle();
+
+  if (profileError) {
+    console.error('Could not verify dashboard access:', profileError.message);
+    redirect('/pricing?status=access_check_failed');
+  }
+  if (profile?.subscription_status !== 'active') {
+    redirect('/pricing?status=payment_required');
+  }
 
   const businessName = profile?.business_name?.trim() || 'My Business';
 
