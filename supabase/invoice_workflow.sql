@@ -9,7 +9,7 @@ alter table public.invoices
   add constraint invoices_document_type_check check (document_type in ('invoice', 'quote'));
 
 create table if not exists public.invoice_payments (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   invoice_id uuid not null references public.invoices(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
   amount numeric(12,2) not null check (amount > 0),
@@ -26,7 +26,7 @@ create index if not exists invoice_payments_user_idx
   on public.invoice_payments(user_id, payment_date desc);
 
 create table if not exists public.invoice_email_logs (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   invoice_id uuid not null references public.invoices(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
   email_type text not null check (email_type in ('invoice', 'reminder', 'receipt')),
@@ -50,7 +50,7 @@ create unique index if not exists invoice_email_logs_receipt_payment_idx
   on public.invoice_email_logs(payment_id) where email_type = 'receipt';
 
 create table if not exists public.recurring_invoice_templates (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   customer_id uuid not null references public.customers(id) on delete cascade,
   frequency text not null check (frequency in ('weekly', 'monthly', 'quarterly', 'yearly')),
@@ -237,7 +237,7 @@ security invoker
 set search_path = public
 as $$
 declare
-  new_invoice_id uuid := uuid_generate_v4();
+  new_invoice_id uuid := gen_random_uuid();
   invoice_subtotal numeric(12,2);
   invoice_tax numeric(12,2);
   invoice_total numeric(12,2);
@@ -393,7 +393,7 @@ set search_path = public
 as $$
 declare
   template_row public.recurring_invoice_templates%rowtype;
-  new_invoice_id uuid := uuid_generate_v4();
+  new_invoice_id uuid := gen_random_uuid();
   invoice_subtotal numeric(12,2);
   invoice_total numeric(12,2);
   next_month date;

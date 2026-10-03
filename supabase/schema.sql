@@ -1,3 +1,4 @@
+create extension if not exists pgcrypto;
 create extension if not exists "uuid-ossp";
 
 create table if not exists public.profiles (
@@ -11,7 +12,7 @@ create table if not exists public.profiles (
 alter table public.profiles add column if not exists business_logo_url text;
 
 create table if not exists public.customers (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   name text not null,
   phone text,
@@ -41,7 +42,7 @@ end;
 $$;
 
 create table if not exists public.inventory_products (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   name text not null,
   sku text,
@@ -56,7 +57,7 @@ create table if not exists public.inventory_products (
 );
 
 create table if not exists public.inventory_movements (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   product_id uuid not null references public.inventory_products(id) on delete restrict,
   quantity_change numeric(12,2) not null check (quantity_change <> 0),
@@ -70,7 +71,7 @@ create index if not exists inventory_movements_user_created_idx
   on public.inventory_movements(user_id, created_at desc);
 
 create table if not exists public.sales (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   customer_id uuid references public.customers(id) on delete set null,
   product_id uuid references public.inventory_products(id) on delete set null,
@@ -94,7 +95,7 @@ alter table public.sales
 create index if not exists sales_user_date_idx on public.sales(user_id, sale_date desc);
 
 create table if not exists public.expenses (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   amount numeric(12,2) not null default 0,
   expense_date date not null default current_date,
@@ -122,7 +123,7 @@ end;
 $$;
 
 create table if not exists public.invoices (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   customer_id uuid references public.customers(id) on delete set null,
   total numeric(12,2) not null default 0,
@@ -155,7 +156,7 @@ end;
 $$;
 
 create table if not exists public.access_payments (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users(id) on delete cascade,
   amount numeric(12,2) not null default 0,
   reference text not null,
@@ -165,7 +166,7 @@ create table if not exists public.access_payments (
 );
 
 create table if not exists public.invoice_items (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   invoice_id uuid not null references public.invoices(id) on delete cascade,
   description text not null,
   quantity numeric(12,2) not null default 1,

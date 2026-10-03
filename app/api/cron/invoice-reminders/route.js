@@ -1,7 +1,11 @@
 import { timingSafeEqual } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
-import { createInvoiceEmailTransporter, invoiceEmailFrom } from '../../../../lib/invoiceEmail';
+import {
+  createInvoiceEmailTransporter,
+  invoiceEmailErrorMessage,
+  invoiceEmailFrom,
+} from '../../../../lib/invoiceEmail';
 import { createInvoiceLinkToken } from '../../../../lib/invoiceLink';
 import { getInvoiceBalance, getInvoicePaidTotal } from '../../../../lib/invoiceBalance';
 
@@ -158,7 +162,7 @@ export async function GET(request) {
     } catch (error) {
       const { error: updateError } = await supabase
         .from('invoice_email_logs')
-        .update({ status: 'failed', error: error.message || 'Reminder delivery failed.' })
+        .update({ status: 'failed', error: invoiceEmailErrorMessage(error) })
         .eq('id', reminder.id);
       failed += 1;
       if (updateError) {

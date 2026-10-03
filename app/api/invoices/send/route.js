@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createInvoicePdf } from '../../../../lib/invoicePdf';
 import { createInvoiceLinkToken } from '../../../../lib/invoiceLink';
-import { createInvoiceEmailTransporter, invoiceEmailFrom } from '../../../../lib/invoiceEmail';
+import {
+  createInvoiceEmailTransporter,
+  invoiceEmailErrorMessage,
+  invoiceEmailFrom,
+} from '../../../../lib/invoiceEmail';
 import { getInvoiceBalance, getInvoicePaidTotal } from '../../../../lib/invoiceBalance';
 import { createServerSupabaseClient } from '../../../../lib/supabaseServer';
 
@@ -140,7 +144,7 @@ export async function POST(request) {
         emailResults.message = 'Invoice email sent.';
       } catch (emailError) {
         emailResults.ok = false;
-        emailResults.message = emailError.message || 'Failed to send email.';
+        emailResults.message = invoiceEmailErrorMessage(emailError);
       }
     }
 
