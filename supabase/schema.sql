@@ -101,8 +101,10 @@ create table if not exists public.expenses (
   expense_date date not null default current_date,
   category text,
   description text,
+  receipt_path text,
   created_at timestamptz default now()
 );
+alter table public.expenses add column if not exists receipt_path text;
 
 do $$
 begin
@@ -337,12 +339,14 @@ begin
 end;
 $$;
 
+drop function if exists public.record_product_sale(uuid, uuid, numeric, date, text);
 create or replace function public.record_product_sale(
   p_product_id uuid,
   p_customer_id uuid,
   p_quantity numeric,
   p_sale_date date,
-  p_description text
+  p_description text,
+  p_sale_id uuid default null
 )
 returns uuid
 language plpgsql
@@ -357,6 +361,11 @@ begin
   end if;
   if p_quantity is null or p_quantity <= 0 then
     raise exception 'Quantity must be greater than zero';
+  end if;
+  if p_sale_id is not null and exists (
+    select 1 from public.sales where id = p_sale_id and user_id = auth.uid()
+  ) then
+    return p_sale_id;
   end if;
 
   select * into product_row
@@ -377,10 +386,10 @@ begin
   end if;
 
   insert into public.sales (
-    user_id, customer_id, product_id, product_name, quantity,
+    id, user_id, customer_id, product_id, product_name, quantity,
     unit_price, cost_amount, amount, sale_date, description
   ) values (
-    auth.uid(), p_customer_id, product_row.id, product_row.name, p_quantity,
+    coalesce(p_sale_id, gen_random_uuid()), auth.uid(), p_customer_id, product_row.id, product_row.name, p_quantity,
     product_row.selling_price, product_row.cost_price * p_quantity,
     product_row.selling_price * p_quantity, coalesce(p_sale_date, current_date), p_description
   ) returning id into sale_id;

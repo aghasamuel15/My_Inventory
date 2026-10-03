@@ -20,6 +20,11 @@ A Nigerian SME finance tracker for recording sales, expenses, customer debt, inv
 - Export report CSVs
 - Access gating with a ₦5,000 fee flow
 - Paystack-ready payment routes
+- Save sales and expenses offline and sync them when online
+- Attach private receipt photos to expense records
+- Send invoice payment reminders through WhatsApp
+- See 30-day cash-flow forecasts and suggested stock reorders
+- Review a weekly business health snapshot
 
 ## Local setup
 1. Copy `.env.example` to `.env.local`.
@@ -31,7 +36,7 @@ A Nigerian SME finance tracker for recording sales, expenses, customer debt, inv
 5. Open http://localhost:3000
 
 ## Supabase database
-Run the entire SQL file in `supabase/schema.sql` in the Supabase SQL Editor for a new project. Then run `supabase/invoice_workflow.sql` to enable itemized invoices, quotes, online payment records, payment receipts, business-logo storage, recurring invoice drafts, delivery history, and scheduled reminders. For an existing project, run both files in full and in that order. In the SQL Editor, use Ctrl+A before Run; running only a selected excerpt will omit functions and policies defined later in the files. The scripts retain existing customer and sales data.
+For a new project, run the entire `supabase/schema.sql`, then `supabase/invoice_workflow.sql`, then `supabase/mobile_features.sql` in the Supabase SQL Editor. For an existing project that already has the earlier schema and invoice workflow, run `supabase/mobile_features.sql` to enable private expense receipt storage and idempotent offline sales sync. In the SQL Editor, use Ctrl+A before Run; running only a selected excerpt will omit functions and policies defined later in the files. The scripts retain existing customer and sales data.
 
 If you hit the exact error `Could not find the 'address' column of 'customers' in the schema cache`, run the minimal repair script in `supabase/repair_missing_customer_address.sql` first, then rerun the full schema script if needed. This ensures the column exists and forces PostgREST to refresh its schema cache.
 
@@ -64,3 +69,5 @@ This project is set up for deployment to Vercel. Add the same environment variab
 - NEXT_PUBLIC_ACCESS_FEE_KOBO
 
 Invoices and quotes can be sent by email with a PDF attachment. Configure the SMTP values above and add each customer's email address. For Gmail SMTP, use `smtp.gmail.com` with port `465` (SSL) or `587` (STARTTLS), set `EMAIL_SMTP_USER` to the full Gmail address, and use a Google App Password—not the account sign-in password. App Passwords require 2-Step Verification. If Gmail returns `535-5.7.8`, generate a new App Password in the Google Account security settings, replace `EMAIL_SMTP_PASS` in Vercel, and redeploy; never share the password. An optional invoice download and Paystack checkout link requires a publicly reachable HTTPS `NEXT_PUBLIC_SITE_URL`; signed links expire after seven days. Paystack invoice checkout also requires `PAYSTACK_SECRET_KEY`; configure the Paystack dashboard webhook to call `/api/paystack/webhook` so completed payments are recorded even if the customer does not return to the site. Overdue reminders and recurring-draft generation run daily at 09:00 UTC. Set a long random `CRON_SECRET` in `.env.local` and Vercel; Vercel sends it to the scheduled endpoint. Recurring schedules only create drafts; review and issue them before sending. On Vercel, set `NEXT_PUBLIC_SITE_URL` to the production HTTPS URL and redeploy after changing environment variables. Keep SMTP, `CRON_SECRET`, signing, and Supabase service-role values server-side in `.env.local` and Vercel settings.
+
+Sales and expenses created while offline are stored in the browser's local storage for the signed-in account and sync when the connection returns. Keep the Sales or Expenses page open to record entries while offline; offline-created sales still validate stock when they sync. Receipt photos require an internet connection and are stored in a private bucket. Cash-flow forecasts use invoice due dates and the previous 30 days of expenses; actual collections and future spending can differ from estimates. Restock suggestions use the last 30 days of recorded product sales plus the configured low-stock threshold.

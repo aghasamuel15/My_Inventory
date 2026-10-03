@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '../../../lib/supabaseClient';
+import OfflineSyncStatus from '../../../components/OfflineSyncStatus';
+import { enqueueOfflineEntry } from '../../../lib/offlineQueue';
 
 const formatNaira = (value) => `₦${Number(value || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 const today = () => new Date().toLocaleDateString('en-CA');
@@ -11,6 +13,7 @@ export default function SalesPage() {
   const [sales, setSales] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [products, setProducts] = useState([]);
+  const [userId, setUserId] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
@@ -30,6 +33,7 @@ export default function SalesPage() {
       setLoading(false);
       return;
     }
+    setUserId(user.id);
 
     const [{ data: salesData }, { data: customerData }, { data: productData }] = await Promise.all([
       supabase.from('sales').select('*').eq('user_id', user.id).order('sale_date', { ascending: false }).limit(100),
@@ -45,6 +49,8 @@ export default function SalesPage() {
 
   useEffect(() => {
     load();
+    window.addEventListener('offline-entries-synced', load);
+    return () => window.removeEventListener('offline-entries-synced', load);
   }, []);
 
   async function handleSubmit(event) {
@@ -53,6 +59,27 @@ export default function SalesPage() {
       alert('Add an inventory product before recording a sale.');
       return;
     }
+    const saleId = crypto.randomUUID();
+    const payload = {
+      p_product_id: form.product_id,
+      p_customer_id: form.customer_id || null,
+      p_quantity: Number(form.quantity),
+      p_sale_date: form.sale_date,
+      p_description: form.description || null,
+      p_sale_id: saleId,
+    };
+
+    if (!navigator.onLine) {
+      try {
+        enqueueOfflineEntry(userId, { id: saleId, type: 'sale', payload, createdAt: new Date().toISOString() });
+      } catch (queueError) {
+        alert(queueError.message || 'Could not save this sale on your device.');
+        return;
+      }
+      setForm({ customer_id: '', product_id: '', quantity: '1', sale_date: today(), description: '' });
+      return;
+    }
+
     setSaving(true);
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
@@ -61,16 +88,20 @@ export default function SalesPage() {
       return;
     }
 
-    const { error } = await supabase.rpc('record_product_sale', {
-      p_product_id: form.product_id,
-      p_customer_id: form.customer_id || null,
-      p_quantity: Number(form.quantity),
-      p_sale_date: form.sale_date,
-      p_description: form.description || null,
-    });
+    const { error } = await supabase.rpc('record_product_sale', payload);
 
     setSaving(false);
     if (error) {
+      if (!navigator.onLine || !error.status || /fetch|network|offline/i.test(error.message || '')) {
+        try {
+          enqueueOfflineEntry(user.id, { id: saleId, type: 'sale', payload, createdAt: new Date().toISOString() });
+        } catch (queueError) {
+          alert(queueError.message || 'Could not save this sale on your device.');
+          return;
+        }
+        setForm({ customer_id: '', product_id: '', quantity: '1', sale_date: today(), description: '' });
+        return;
+      }
       alert(error.message);
       return;
     }
@@ -82,6 +113,7 @@ export default function SalesPage() {
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold text-slate-900">Sales</h1>
+      <OfflineSyncStatus userId={userId} supabase={supabase} />
 
       <form onSubmit={handleSubmit} className="card mb-8 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <div>

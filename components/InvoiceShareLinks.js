@@ -56,12 +56,27 @@ export default function InvoiceShareLinks({ token, invoiceNumber, balance, phone
     window.open(whatsapp.toString(), '_blank', 'noopener,noreferrer');
   }
 
+  function handleReminder() {
+    const baseUrl = window.location.origin;
+    const payUrl = new URL(`/invoice/pay/${encodeURIComponent(token)}`, baseUrl).toString();
+    const pdfUrl = new URL(`/api/invoices/public/${encodeURIComponent(token)}`, baseUrl).toString();
+    const message = `Hello, this is a friendly reminder that invoice ${invoiceNumber} has a balance of ${formatNaira(balance)}. You can view the invoice here: ${pdfUrl} and pay securely here: ${payUrl}`;
+    const whatsapp = new URL('https://wa.me/');
+    const phoneNumber = normalizePhone(phone);
+    if (phoneNumber) whatsapp.pathname = `/${phoneNumber}`;
+    whatsapp.searchParams.set('text', message);
+    window.open(whatsapp.toString(), '_blank', 'noopener,noreferrer');
+  }
+
   return (
-    <div>
+    <div className="flex flex-wrap gap-2">
       <button type="button" onClick={handleShare} className="btn-secondary text-sm">
         Share via WhatsApp
       </button>
-      {shareError && <p role="alert" className="mt-2 max-w-xs text-xs text-red-600">{shareError}</p>}
+      <button type="button" onClick={handleReminder} className="btn-secondary text-sm">
+        Send payment reminder
+      </button>
+      {shareError && <p role="alert" className="basis-full text-xs text-red-600">{shareError}</p>}
     </div>
   );
 }

@@ -13,6 +13,7 @@ export default function InventoryPage() {
   const supabase = createClient();
   const [products, setProducts] = useState([]);
   const [movements, setMovements] = useState([]);
+  const [recentSalesByProduct, setRecentSalesByProduct] = useState({});
   const [form, setForm] = useState(emptyProduct);
   const [adjustment, setAdjustment] = useState({ product_id: '', action: 'add', quantity: '', reason: '' });
   const [loading, setLoading] = useState(true);
@@ -26,12 +27,20 @@ export default function InventoryPage() {
       return;
     }
 
-    const [{ data: productData }, { data: movementData }] = await Promise.all([
+    const date30DaysAgo = new Date();
+    date30DaysAgo.setDate(date30DaysAgo.getDate() - 30);
+    const salesStartDate = date30DaysAgo.toLocaleDateString('en-CA');
+    const [{ data: productData }, { data: movementData }, { data: salesData }] = await Promise.all([
       supabase.from('inventory_products').select('*').eq('user_id', user.id).eq('is_active', true).order('name'),
       supabase.from('inventory_movements').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(40),
+      supabase.from('sales').select('product_id, quantity').eq('user_id', user.id).gte('sale_date', salesStartDate),
     ]);
     setProducts(productData || []);
     setMovements(movementData || []);
+    setRecentSalesByProduct((salesData || []).reduce((totals, sale) => {
+      if (sale.product_id) totals[sale.product_id] = (totals[sale.product_id] || 0) + Number(sale.quantity || 0);
+      return totals;
+    }, {}));
     setLoading(false);
   }
 
@@ -117,6 +126,17 @@ export default function InventoryPage() {
 
   const lowStockCount = products.filter((product) => Number(product.quantity) <= Number(product.low_stock_threshold)).length;
   const productName = (productId) => products.find((product) => product.id === productId)?.name || 'Archived product';
+  const suggestedRestock = (product) => {
+    const targetStock = Number(product.low_stock_threshold) + Number(recentSalesByProduct[product.id] || 0);
+    return Math.max(0, Math.ceil((targetStock - Number(product.quantity)) * 100) / 100);
+  };
+
+  function useRestockSuggestion(product) {
+    const quantity = suggestedRestock(product);
+    if (!quantity) return;
+    setAdjustment({ product_id: product.id, action: 'add', quantity: String(quantity), reason: 'Suggested restock' });
+    document.getElementById('stock-adjustment-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
 
   return (
     <div>
@@ -142,7 +162,7 @@ export default function InventoryPage() {
         <div className="flex items-end"><button type="submit" disabled={saving} className="btn-primary w-full">{saving ? 'Saving...' : 'Add product'}</button></div>
       </form>
 
-      <form onSubmit={handleAdjustment} className="card mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <form id="stock-adjustment-form" onSubmit={handleAdjustment} className="card mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <h2 className="text-lg font-bold text-slate-900 sm:col-span-2 xl:col-span-5">Add or remove stock</h2>
         <div>
           <label className="label">Product</label>
@@ -165,8 +185,8 @@ export default function InventoryPage() {
       {loading ? <div>Loading inventory...</div> : (
         <>
           <div className="mb-6 hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:block">
-            <table className="w-full min-w-[760px] text-left text-sm">
-              <thead><tr className="border-b text-slate-500"><th className="py-2">Product</th><th>SKU</th><th>Unit</th><th className="text-right">In stock</th><th className="text-right">Cost</th><th className="text-right">Price</th><th className="text-right">Margin</th><th /></tr></thead>
+            <table className="w-full min-w-[900px] text-left text-sm">
+              <thead><tr className="border-b text-slate-500"><th className="py-2">Product</th><th>SKU</th><th>Unit</th><th className="text-right">In stock</th><th className="text-right">Cost</th><th className="text-right">Price</th><th className="text-right">Margin</th><th>Restock suggestion</th><th /></tr></thead>
               <tbody>
                 {products.map((product) => {
                   const low = Number(product.quantity) <= Number(product.low_stock_threshold);
@@ -178,11 +198,12 @@ export default function InventoryPage() {
                       <td className="text-right">{formatNaira(product.cost_price)}</td>
                       <td className="text-right">{formatNaira(product.selling_price)}</td>
                       <td className="text-right text-emerald-700">{formatNaira(Number(product.selling_price) - Number(product.cost_price))}</td>
+                      <td>{suggestedRestock(product) > 0 ? <button type="button" onClick={() => useRestockSuggestion(product)} className="font-semibold text-amber-800 hover:underline">{suggestedRestock(product)} {product.unit} · Use</button> : '—'}</td>
                       <td className="text-right"><button type="button" disabled={Number(product.quantity) > 0} title={Number(product.quantity) > 0 ? 'Remove remaining stock before archiving' : 'Archive product'} onClick={() => handleArchive(product)} className="text-xs font-semibold text-slate-500 enabled:hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40">Archive</button></td>
                     </tr>
                   );
                 })}
-                {products.length === 0 && <tr><td colSpan="8" className="py-8 text-center text-slate-400">No products yet. Add your first item above.</td></tr>}
+                {products.length === 0 && <tr><td colSpan="9" className="py-8 text-center text-slate-400">No products yet. Add your first item above.</td></tr>}
               </tbody>
             </table>
           </div>
@@ -219,6 +240,12 @@ export default function InventoryPage() {
                       <div className="mt-0.5 font-semibold text-emerald-700">{formatNaira(Number(product.selling_price) - Number(product.cost_price))}</div>
                     </div>
                   </div>
+                  {suggestedRestock(product) > 0 && (
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-amber-50 px-3 py-2">
+                      <p className="text-xs font-medium text-amber-900">Suggested restock: {suggestedRestock(product)} {product.unit}</p>
+                      <button type="button" onClick={() => useRestockSuggestion(product)} className="rounded-lg bg-white px-3 py-2 text-xs font-semibold text-amber-900 shadow-sm">Use suggestion</button>
+                    </div>
+                  )}
                   <div className="mt-3 border-t border-slate-100 pt-3 text-right">
                     <button type="button" disabled={Number(product.quantity) > 0} title={Number(product.quantity) > 0 ? 'Remove remaining stock before archiving' : 'Archive product'} onClick={() => handleArchive(product)} className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-500 enabled:hover:bg-red-50 enabled:hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40">Archive product</button>
                   </div>

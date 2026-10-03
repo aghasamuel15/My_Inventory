@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Papa from 'papaparse';
 import { createClient } from '../../../lib/supabaseClient';
+import { getInvoiceBalance } from '../../../lib/invoiceBalance';
 
 const formatNaira = (value) => `₦${Number(value || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 const periodOptions = [
@@ -49,6 +50,7 @@ export default function ReportsPage() {
   const supabase = createClient();
   const [period, setPeriod] = useState('weekly');
   const [summary, setSummary] = useState(null);
+  const [cashFlow, setCashFlow] = useState(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const startDate = toDateString(getPeriodStart(period));
@@ -65,13 +67,23 @@ export default function ReportsPage() {
       return;
     }
 
-    const [salesRes, expensesRes, customersRes] = await Promise.all([
+    const forecastStart = new Date();
+    forecastStart.setDate(forecastStart.getDate() - 30);
+    const forecastStartDate = toDateString(forecastStart);
+    const forecastEnd = new Date();
+    forecastEnd.setDate(forecastEnd.getDate() + 30);
+    const forecastEndDate = toDateString(forecastEnd);
+    const todayDate = toDateString(new Date());
+
+    const [salesRes, expensesRes, customersRes, forecastExpensesRes, invoicesRes] = await Promise.all([
       supabase.from('sales').select('sale_date, amount, cost_amount, customer_id, product_id, product_name, quantity, description').eq('user_id', user.id).gte('sale_date', startDate).lte('sale_date', endDate).order('sale_date'),
       supabase.from('expenses').select('expense_date, category, description, amount').eq('user_id', user.id).gte('expense_date', startDate).lte('expense_date', endDate),
       supabase.from('customers').select('id, name').eq('user_id', user.id),
+      supabase.from('expenses').select('expense_date, amount').eq('user_id', user.id).gte('expense_date', forecastStartDate).lte('expense_date', todayDate),
+      supabase.from('invoices').select('total, due_date, status, document_type, payments:invoice_payments(amount)').eq('user_id', user.id).eq('document_type', 'invoice').neq('status', 'draft'),
     ]);
 
-    const failedQuery = salesRes.error || expensesRes.error || customersRes.error;
+    const failedQuery = salesRes.error || expensesRes.error || customersRes.error || forecastExpensesRes.error || invoicesRes.error;
     if (failedQuery) {
       setSummary(null);
       setErrorMessage(failedQuery.message);
@@ -117,6 +129,42 @@ export default function ReportsPage() {
       averageSale: sales.length ? totalSales / sales.length : 0,
       topCustomers: [...customerTotals.values()].sort((a, b) => b.amount - a.amount).slice(0, 5),
       topProducts: [...productTotals.values()].sort((a, b) => b.quantity - a.quantity).slice(0, 5),
+    });
+    const forecastExpenseTotal = (forecastExpensesRes.data || []).reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+    const upcomingInvoices = (invoicesRes.data || []).map((invoice) => ({
+      ...invoice,
+      balance: getInvoiceBalance(invoice),
+    })).filter((invoice) => invoice.balance > 0 && invoice.due_date && invoice.due_date >= todayDate && invoice.due_date <= forecastEndDate);
+    const weeks = Array.from({ length: 4 }, (_, index) => {
+      const fromDay = index * 7;
+      const toDay = index === 3 ? 29 : fromDay + 6;
+      const weekStart = new Date();
+      weekStart.setHours(0, 0, 0, 0);
+      weekStart.setDate(weekStart.getDate() + fromDay);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + (toDay - fromDay));
+      const periodStart = toDateString(weekStart);
+      const periodEnd = toDateString(weekEnd);
+      const receivables = upcomingInvoices
+        .filter((invoice) => invoice.due_date >= periodStart && invoice.due_date <= periodEnd)
+        .reduce((sum, invoice) => sum + invoice.balance, 0);
+      const days = toDay - fromDay + 1;
+      return {
+        label: `Days ${fromDay + 1}–${toDay + 1}`,
+        receivables,
+        estimatedExpenses: (forecastExpenseTotal / 30) * days,
+        days,
+      };
+    });
+    setCashFlow({
+      weeks,
+      expectedIncome: weeks.reduce((sum, week) => sum + week.receivables, 0),
+      estimatedExpenses: forecastExpenseTotal,
+      overdue: (invoicesRes.data || []).map((invoice) => ({
+        ...invoice,
+        balance: getInvoiceBalance(invoice),
+      })).filter((invoice) => invoice.balance > 0 && invoice.due_date && invoice.due_date < todayDate)
+        .reduce((sum, invoice) => sum + invoice.balance, 0),
     });
     setLoading(false);
   }
@@ -183,6 +231,33 @@ export default function ReportsPage() {
             <div className="card"><div className="text-sm text-slate-500">Net operating profit</div><div className={`mt-2 text-2xl font-black ${summary.netProfit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>{formatNaira(summary.netProfit)}</div></div>
             <div className="card"><div className="text-sm text-slate-500">Average sale</div><div className="mt-2 text-2xl font-black text-slate-900">{formatNaira(summary.averageSale)}</div></div>
           </div>
+
+          {cashFlow && (
+            <section className="mt-6 rounded-2xl border border-brand-100 bg-white p-5 shadow-sm">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">Cash-flow forecast · next 30 days</h2>
+                  <p className="mt-1 text-xs text-slate-500">Expected invoice collections vs. estimated expenses based on the last 30 days.</p>
+                </div>
+                <div className="rounded-xl bg-brand-50 px-3 py-2 text-right">
+                  <div className="text-xs text-slate-600">Forecast net</div>
+                  <div className={`font-bold ${cashFlow.expectedIncome - cashFlow.estimatedExpenses >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                    {formatNaira(cashFlow.expectedIncome - cashFlow.estimatedExpenses)}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {cashFlow.weeks.map((week) => (
+                  <div key={week.label} className="rounded-xl bg-slate-50 p-3">
+                    <h3 className="text-sm font-semibold text-slate-800">{week.label}</h3>
+                    <p className="mt-2 flex justify-between gap-2 text-xs"><span className="text-slate-500">Invoice dues</span><span className="font-semibold">{formatNaira(week.receivables)}</span></p>
+                    <p className="mt-1 flex justify-between gap-2 text-xs"><span className="text-slate-500">Est. expenses</span><span className="font-semibold text-red-600">{formatNaira(week.estimatedExpenses)}</span></p>
+                  </div>
+                ))}
+              </div>
+              {cashFlow.overdue > 0 && <p className="mt-3 text-xs font-medium text-amber-800">Overdue invoices excluded from expected collections: {formatNaira(cashFlow.overdue)}.</p>}
+            </section>
+          )}
 
           <div className="mt-6 grid gap-6 xl:grid-cols-2">
             <section className="card">
