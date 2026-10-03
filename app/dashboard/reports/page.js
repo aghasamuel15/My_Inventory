@@ -11,6 +11,7 @@ const periodOptions = [
   { value: 'weekly', label: 'This week' },
   { value: 'monthly', label: 'This month' },
   { value: 'yearly', label: 'This year' },
+  { value: 'custom', label: 'Custom' },
 ];
 
 function toDateString(date) {
@@ -49,12 +50,18 @@ function downloadCsv(rows, filename) {
 export default function ReportsPage() {
   const supabase = createClient();
   const [period, setPeriod] = useState('weekly');
+  const [selectedCustomerId, setSelectedCustomerId] = useState('all');
+  const [customers, setCustomers] = useState([]);
+  const [customStartDate, setCustomStartDate] = useState(toDateString(getPeriodStart('weekly')));
+  const [customEndDate, setCustomEndDate] = useState(toDateString(new Date()));
   const [summary, setSummary] = useState(null);
   const [cashFlow, setCashFlow] = useState(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
-  const startDate = toDateString(getPeriodStart(period));
-  const endDate = toDateString(new Date());
+  const normalizedCustomStartDate = customStartDate <= customEndDate ? customStartDate : customEndDate;
+  const normalizedCustomEndDate = customStartDate <= customEndDate ? customEndDate : customStartDate;
+  const effectiveStartDate = period === 'custom' ? normalizedCustomStartDate : toDateString(getPeriodStart(period));
+  const effectiveEndDate = period === 'custom' ? normalizedCustomEndDate || toDateString(new Date()) : toDateString(new Date());
 
   async function runReport() {
     setLoading(true);
@@ -75,10 +82,15 @@ export default function ReportsPage() {
     const forecastEndDate = toDateString(forecastEnd);
     const todayDate = toDateString(new Date());
 
+    let salesQuery = supabase.from('sales').select('sale_date, amount, cost_amount, customer_id, product_id, product_name, quantity, description').eq('user_id', user.id).gte('sale_date', effectiveStartDate).lte('sale_date', effectiveEndDate).order('sale_date');
+    if (selectedCustomerId !== 'all') {
+      salesQuery = salesQuery.eq('customer_id', selectedCustomerId);
+    }
+
     const [salesRes, expensesRes, customersRes, forecastExpensesRes, invoicesRes] = await Promise.all([
-      supabase.from('sales').select('sale_date, amount, cost_amount, customer_id, product_id, product_name, quantity, description').eq('user_id', user.id).gte('sale_date', startDate).lte('sale_date', endDate).order('sale_date'),
-      supabase.from('expenses').select('expense_date, category, description, amount').eq('user_id', user.id).gte('expense_date', startDate).lte('expense_date', endDate),
-      supabase.from('customers').select('id, name').eq('user_id', user.id),
+      salesQuery,
+      supabase.from('expenses').select('expense_date, category, description, amount').eq('user_id', user.id).gte('expense_date', effectiveStartDate).lte('expense_date', effectiveEndDate),
+      supabase.from('customers').select('id, name').eq('user_id', user.id).order('name'),
       supabase.from('expenses').select('expense_date, amount').eq('user_id', user.id).gte('expense_date', forecastStartDate).lte('expense_date', todayDate),
       supabase.from('invoices').select('total, due_date, status, document_type, payments:invoice_payments(amount)').eq('user_id', user.id).eq('document_type', 'invoice').neq('status', 'draft'),
     ]);
@@ -93,7 +105,9 @@ export default function ReportsPage() {
 
     const sales = salesRes.data || [];
     const expenses = expensesRes.data || [];
-    const customerNames = new Map((customersRes.data || []).map((customer) => [customer.id, customer.name]));
+    const customerList = customersRes.data || [];
+    setCustomers(customerList);
+    const customerNames = new Map(customerList.map((customer) => [customer.id, customer.name]));
     const customerTotals = new Map();
     const productTotals = new Map();
 
@@ -172,7 +186,16 @@ export default function ReportsPage() {
   useEffect(() => {
     runReport();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [period]);
+  }, [period, selectedCustomerId, customStartDate, customEndDate]);
+
+  function handlePresetPeriod(nextPeriod) {
+    setPeriod(nextPeriod);
+    if (nextPeriod !== 'custom') {
+      const nextRange = getPeriodStart(nextPeriod);
+      setCustomStartDate(toDateString(nextRange));
+      setCustomEndDate(toDateString(new Date()));
+    }
+  }
 
   function exportSales() {
     if (!summary) return;
@@ -183,7 +206,7 @@ export default function ReportsPage() {
       Customer: row.customer_id ? summary.customerNames[row.customer_id] || '' : '',
       Description: row.description || '',
       Amount: Number(row.amount || 0),
-    })), `sales_${startDate}_to_${endDate}.csv`);
+    })), `sales_${effectiveStartDate}_to_${effectiveEndDate}.csv`);
   }
 
   function exportExpenses() {
@@ -193,7 +216,7 @@ export default function ReportsPage() {
       Category: row.category || '',
       Description: row.description || '',
       Amount: Number(row.amount || 0),
-    })), `expenses_${startDate}_to_${endDate}.csv`);
+    })), `expenses_${effectiveStartDate}_to_${effectiveEndDate}.csv`);
   }
 
   const customerMax = Math.max(...(summary?.topCustomers.map((item) => item.amount) || [0]), 1);
@@ -201,24 +224,76 @@ export default function ReportsPage() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+      <div className="mb-5 flex flex-col gap-4 sm:mb-6 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Business insights</h1>
-          <p className="mt-1 text-sm text-slate-500">{startDate} to {endDate}</p>
+          <p className="mt-1 text-sm text-slate-500">{effectiveStartDate} <span aria-hidden="true">to</span> {effectiveEndDate}</p>
         </div>
-        <div className="flex flex-wrap gap-2" aria-label="Report period">
+        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0" aria-label="Report period">
           {periodOptions.map((option) => (
             <button
               key={option.value}
               type="button"
               aria-pressed={period === option.value}
-              onClick={() => setPeriod(option.value)}
-              className={period === option.value ? 'btn-primary' : 'btn-secondary'}
+              onClick={() => handlePresetPeriod(option.value)}
+              className={`${period === option.value ? 'btn-primary' : 'btn-secondary'} shrink-0 whitespace-nowrap px-3 py-2 text-sm`}
             >
               {option.label}
             </button>
           ))}
-          <button type="button" onClick={runReport} disabled={loading} className="btn-secondary">{loading ? 'Updating...' : 'Refresh'}</button>
+          <button type="button" onClick={runReport} disabled={loading} className="btn-secondary shrink-0 whitespace-nowrap px-3 py-2 text-sm disabled:cursor-wait disabled:opacity-60">{loading ? 'Updating...' : 'Refresh'}</button>
+        </div>
+      </div>
+
+      <section aria-label="Report filters" className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-bold text-slate-900">Filter report</h2>
+            <p className="mt-0.5 text-xs text-slate-500">Choose a customer and reporting period.</p>
+          </div>
+          <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
+            {period === 'custom' ? 'Custom range' : periodOptions.find((option) => option.value === period)?.label}
+          </span>
+        </div>
+        <div className={`grid gap-3 ${period === 'custom' ? 'sm:grid-cols-2' : ''}`}>
+          <label className="flex min-w-0 flex-col gap-1.5 text-xs font-semibold text-slate-600">
+            Customer
+            <select
+              value={selectedCustomerId}
+              onChange={(event) => setSelectedCustomerId(event.target.value)}
+              className="input min-h-11 bg-slate-50 py-2.5 text-sm"
+            >
+              <option value="all">All customers</option>
+              {customers.map((customer) => (
+                <option key={customer.id} value={customer.id}>{customer.name}</option>
+              ))}
+            </select>
+          </label>
+
+          {period === 'custom' && (
+            <>
+              <label className="flex min-w-0 flex-col gap-1.5 text-xs font-semibold text-slate-600">
+                Start date
+                <input
+                  type="date"
+                  value={customStartDate}
+                  max={customEndDate}
+                  onChange={(event) => setCustomStartDate(event.target.value)}
+                  className="input min-h-11 bg-slate-50 py-2.5 text-sm"
+                />
+              </label>
+              <label className="flex min-w-0 flex-col gap-1.5 text-xs font-semibold text-slate-600">
+                End date
+                <input
+                  type="date"
+                  value={customEndDate}
+                  min={customStartDate}
+                  onChange={(event) => setCustomEndDate(event.target.value)}
+                  className="input min-h-11 bg-slate-50 py-2.5 text-sm"
+                />
+              </label>
+            </>
+          )}
         </div>
       </div>
 

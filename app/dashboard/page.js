@@ -9,6 +9,7 @@ const formatNaira = (value) => `₦${Number(value || 0).toLocaleString('en-NG', 
 
 export default function DashboardPage() {
   const supabase = createClient();
+  const [businessName, setBusinessName] = useState('My Business');
   const [stats, setStats] = useState({
     todaySales: 0,
     todayExpenses: 0,
@@ -33,6 +34,14 @@ export default function DashboardPage() {
         setLoading(false);
         return;
       }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('business_name')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      setBusinessName(profile?.business_name?.trim() || 'My Business');
 
       const today = new Date();
       const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
@@ -106,7 +115,10 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-slate-900">Dashboard</h1>
+      <div className="mb-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Overview</p>
+        <h1 className="mt-2 text-2xl font-bold text-slate-900">{businessName}</h1>
+      </div>
 
       {loading ? (
         <div className="text-slate-500">Loading overview...</div>
