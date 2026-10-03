@@ -164,8 +164,8 @@ export default function InventoryPage() {
 
       {loading ? <div>Loading inventory...</div> : (
         <>
-          <div className="card mb-6 overflow-x-auto">
-            <table className="w-full text-left text-sm">
+          <div className="mb-6 hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:block">
+            <table className="w-full min-w-[760px] text-left text-sm">
               <thead><tr className="border-b text-slate-500"><th className="py-2">Product</th><th>SKU</th><th>Unit</th><th className="text-right">In stock</th><th className="text-right">Cost</th><th className="text-right">Price</th><th className="text-right">Margin</th><th /></tr></thead>
               <tbody>
                 {products.map((product) => {
@@ -187,9 +187,49 @@ export default function InventoryPage() {
             </table>
           </div>
 
-          <section className="card overflow-x-auto">
+          <section className="mb-6 space-y-3 md:hidden">
+            {products.length === 0 ? (
+              <div className="card text-center text-sm text-slate-500">No products yet. Add your first item above.</div>
+            ) : products.map((product) => {
+              const low = Number(product.quantity) <= Number(product.low_stock_threshold);
+              return (
+                <article key={product.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h2 className="break-words font-bold text-slate-900">{product.name}</h2>
+                      <p className="mt-1 text-xs text-slate-500">{product.sku ? `SKU ${product.sku} · ` : ''}{product.unit}</p>
+                    </div>
+                    {low && <span className="shrink-0 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">Low stock</span>}
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-slate-100 pt-3">
+                    <div>
+                      <div className="text-xs text-slate-500">In stock</div>
+                      <div className={`mt-0.5 font-bold ${low ? 'text-amber-700' : 'text-slate-900'}`}>{product.quantity} {product.unit}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-slate-500">Selling price</div>
+                      <div className="mt-0.5 font-semibold text-slate-900">{formatNaira(product.selling_price)}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-slate-500">Cost price</div>
+                      <div className="mt-0.5 text-slate-700">{formatNaira(product.cost_price)}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-slate-500">Margin per unit</div>
+                      <div className="mt-0.5 font-semibold text-emerald-700">{formatNaira(Number(product.selling_price) - Number(product.cost_price))}</div>
+                    </div>
+                  </div>
+                  <div className="mt-3 border-t border-slate-100 pt-3 text-right">
+                    <button type="button" disabled={Number(product.quantity) > 0} title={Number(product.quantity) > 0 ? 'Remove remaining stock before archiving' : 'Archive product'} onClick={() => handleArchive(product)} className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-500 enabled:hover:bg-red-50 enabled:hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40">Archive product</button>
+                  </div>
+                </article>
+              );
+            })}
+          </section>
+
+          <section className="mb-6 hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:block">
             <h2 className="mb-3 text-lg font-bold text-slate-900">Recent stock movements</h2>
-            <table className="w-full text-left text-sm">
+            <table className="w-full min-w-[520px] text-left text-sm">
               <thead><tr className="border-b text-slate-500"><th className="py-2">When</th><th>Product</th><th>Reason</th><th className="text-right">Change</th></tr></thead>
               <tbody>
                 {movements.map((movement) => (
@@ -204,6 +244,31 @@ export default function InventoryPage() {
                 {movements.length === 0 && <tr><td colSpan="4" className="py-6 text-center text-slate-400">Stock changes will appear here.</td></tr>}
               </tbody>
             </table>
+          </section>
+
+          <section className="space-y-3 md:hidden">
+            <h2 className="px-1 text-lg font-bold text-slate-900">Recent stock movements</h2>
+            {movements.length === 0 ? (
+              <div className="card text-sm text-slate-500">Stock changes will appear here.</div>
+            ) : movements.map((movement) => {
+              const added = Number(movement.quantity_change) > 0;
+              return (
+                <article key={movement.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="break-words font-semibold text-slate-900">{productName(movement.product_id)}</h3>
+                      <p className="mt-1 break-words text-sm text-slate-600">{movement.reason}</p>
+                    </div>
+                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-sm font-bold ${added ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+                      {added ? '+' : ''}{movement.quantity_change}
+                    </span>
+                  </div>
+                  <p className="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-500">
+                    {new Date(movement.created_at).toLocaleString()}
+                  </p>
+                </article>
+              );
+            })}
           </section>
         </>
       )}
