@@ -97,15 +97,58 @@ create policy "Users can view their cashbook reconciliations"
 
 drop policy if exists "Users can create their cashbook reconciliations" on public.cashbook_reconciliations;
 
+create table if not exists public.cashbook_account_openings (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  account text not null check (account in ('cash', 'bank')),
+  initial_balance numeric(14,2) not null,
+  created_at timestamptz not null default now(),
+  primary key (user_id, account)
+);
+
+alter table public.cashbook_account_openings enable row level security;
+revoke all on public.cashbook_account_openings from anon, authenticated;
+grant select on public.cashbook_account_openings to authenticated;
+drop policy if exists "Users can view their cashbook account openings" on public.cashbook_account_openings;
+create policy "Users can view their cashbook account openings"
+  on public.cashbook_account_openings for select using (auth.uid() = user_id);
+
+create table if not exists public.cashbook_adjustments (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  account text not null check (account in ('cash', 'bank')),
+  direction text not null check (direction in ('income', 'expense')),
+  amount numeric(14,2) not null check (amount > 0),
+  transaction_date date not null,
+  description text not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists cashbook_adjustments_user_account_date_idx
+  on public.cashbook_adjustments(user_id, account, transaction_date);
+alter table public.cashbook_adjustments enable row level security;
+revoke all on public.cashbook_adjustments from anon;
+grant select, insert, update, delete on public.cashbook_adjustments to authenticated;
+drop policy if exists "Users can manage their cashbook adjustments" on public.cashbook_adjustments;
+create policy "Users can manage their cashbook adjustments"
+  on public.cashbook_adjustments for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id and account in ('cash', 'bank') and direction in ('income', 'expense') and amount > 0);
+
 drop function if exists public.get_cashbook_period_totals(date, date);
+drop function if exists public.get_cashbook_period_totals(date, date, text);
 create function public.get_cashbook_period_totals(
   p_start_date date,
-  p_end_date date
+  p_end_date date,
+  p_account text
 )
 returns table (
   account text,
   sales_total numeric,
   expenses_total numeric,
+  adjustment_income numeric,
+  adjustment_expenses numeric,
+  opening_balance numeric,
+  opening_is_initial boolean,
   unassigned_count bigint
 )
 language plpgsql
@@ -119,6 +162,9 @@ begin
   end if;
   if p_start_date is null or p_end_date is null or p_start_date > p_end_date then
     raise exception 'Enter a valid cashbook date range';
+  end if;
+  if p_account is null or p_account not in ('cash', 'bank') then
+    raise exception 'Choose cash or bank as the account';
   end if;
 
   return query
@@ -148,6 +194,42 @@ begin
         and e.payment_account = accounts.account_name
         and e.expense_date between p_start_date and p_end_date
     ), 0)::numeric,
+    coalesce((
+      select sum(a.amount)
+      from public.cashbook_adjustments a
+      where a.user_id = auth.uid()
+        and a.account = accounts.account_name
+        and a.direction = 'income'
+        and a.transaction_date between p_start_date and p_end_date
+    ), 0)::numeric,
+    coalesce((
+      select sum(a.amount)
+      from public.cashbook_adjustments a
+      where a.user_id = auth.uid()
+        and a.account = accounts.account_name
+        and a.direction = 'expense'
+        and a.transaction_date between p_start_date and p_end_date
+    ), 0)::numeric,
+    coalesce((
+      select r.actual_closing_balance
+      from public.cashbook_reconciliations r
+      where r.user_id = auth.uid()
+        and r.account = accounts.account_name
+        and r.end_date < p_start_date
+      order by r.end_date desc, r.reconciled_at desc
+      limit 1
+    ), (
+      select o.initial_balance
+      from public.cashbook_account_openings o
+      where o.user_id = auth.uid() and o.account = accounts.account_name
+    )),
+    not exists (
+      select 1
+      from public.cashbook_reconciliations r
+      where r.user_id = auth.uid()
+        and r.account = accounts.account_name
+        and r.end_date < p_start_date
+    ),
     (
       select count(*)::bigint
       from (
@@ -168,20 +250,27 @@ begin
         where ip.user_id = auth.uid()
           and ip.cashbook_account = 'unassigned'
           and ip.payment_date between p_start_date and p_end_date
+        union all
+        select a.id
+        from public.cashbook_adjustments a
+        where a.user_id = auth.uid()
+          and a.account = 'unassigned'
+          and a.transaction_date between p_start_date and p_end_date
       ) unassigned
     )
-  from (values ('cash'::text), ('bank'::text)) as accounts(account_name);
+  from (values (p_account::text)) as accounts(account_name);
 end;
 $$;
 
 drop function if exists public.reconcile_cashbook(text, date, date, numeric, numeric, text);
+drop function if exists public.reconcile_cashbook(text, date, date, numeric, text, numeric);
 create function public.reconcile_cashbook(
   p_account text,
   p_start_date date,
   p_end_date date,
-  p_opening_balance numeric,
   p_actual_closing_balance numeric,
-  p_notes text default null
+  p_notes text default null,
+  p_initial_opening_balance numeric default null
 )
 returns uuid
 language plpgsql
@@ -193,8 +282,9 @@ declare
   total_sales numeric(14,2);
   total_expenses numeric(14,2);
   total_invoice_payments numeric(14,2);
-  calculated_balance numeric(14,2);
+  opening_balance_value numeric(14,2);
   reconciliation_id uuid;
+  calculated_balance numeric(14,2);
 begin
   if current_user_id is null then
     raise exception 'You must be signed in to save a reconciliation';
@@ -205,9 +295,11 @@ begin
   if p_start_date is null or p_end_date is null or p_start_date > p_end_date then
     raise exception 'Enter a valid reconciliation date range';
   end if;
-  if p_opening_balance is null or p_actual_closing_balance is null then
-    raise exception 'Enter both opening and actual closing balances';
+  if p_actual_closing_balance is null then
+    raise exception 'Enter the actual closing balance';
   end if;
+
+  perform pg_advisory_xact_lock(hashtext(current_user_id::text), hashtext(p_account || p_start_date::text || p_end_date::text));
 
   select coalesce(sum(s.amount), 0)
   into total_sales
@@ -231,24 +323,107 @@ begin
     and ip.payment_date between p_start_date and p_end_date;
 
   total_sales := total_sales + total_invoice_payments;
-  calculated_balance := p_opening_balance + total_sales - total_expenses;
 
-  insert into public.cashbook_reconciliations (
+  select r.actual_closing_balance
+  into opening_balance_value
+  from public.cashbook_reconciliations r
+  where r.user_id = current_user_id
+    and r.account = p_account
+    and r.end_date < p_start_date
+  order by r.end_date desc, r.reconciled_at desc
+  limit 1;
+
+  if opening_balance_value is null then
+    select initial_balance
+    into opening_balance_value
+    from public.cashbook_account_openings
+    where user_id = current_user_id and account = p_account;
+
+    if opening_balance_value is null then
+      if p_initial_opening_balance is null then
+        raise exception 'Enter the initial opening balance for this account';
+      end if;
+      insert into public.cashbook_account_openings (user_id, account, initial_balance)
+      values (current_user_id, p_account, p_initial_opening_balance)
+      on conflict (user_id, account) do nothing;
+
+      select initial_balance
+      into opening_balance_value
+      from public.cashbook_account_openings
+      where user_id = current_user_id and account = p_account;
+    end if;
+  end if;
+
+  if opening_balance_value is null then
+    raise exception 'Enter the initial opening balance for this account';
+  end if;
+
+  if exists (
+    select 1 from public.sales s
+    where s.user_id = current_user_id and s.payment_account = 'unassigned'
+      and s.sale_date between p_start_date and p_end_date
+    union all
+    select 1 from public.expenses e
+    where e.user_id = current_user_id and e.payment_account = 'unassigned'
+      and e.expense_date between p_start_date and p_end_date
+    union all
+    select 1 from public.invoice_payments ip
+    where ip.user_id = current_user_id and ip.cashbook_account = 'unassigned'
+      and ip.payment_date between p_start_date and p_end_date
+  ) then
+    raise exception 'Assign every transaction in the date range to cash or bank before reconciling';
+  end if;
+
+  select coalesce(sum(a.amount) filter (where a.direction = 'income'), 0)
+       - coalesce(sum(a.amount) filter (where a.direction = 'expense'), 0)
+  into calculated_balance
+  from public.cashbook_adjustments a
+  where a.user_id = current_user_id
+    and a.account = p_account
+    and a.transaction_date between p_start_date and p_end_date;
+
+  calculated_balance := opening_balance_value + total_sales - total_expenses + calculated_balance;
+
+  select r.id
+  into reconciliation_id
+  from public.cashbook_reconciliations r
+  where r.user_id = current_user_id
+    and r.account = p_account
+    and r.start_date = p_start_date
+    and r.end_date = p_end_date
+  order by r.reconciled_at desc
+  limit 1
+  for update;
+
+  if reconciliation_id is null then
+    insert into public.cashbook_reconciliations (
     user_id, account, start_date, end_date, opening_balance, sales_total,
     expenses_total, calculated_closing_balance, actual_closing_balance,
     variance, notes
-  ) values (
-    current_user_id, p_account, p_start_date, p_end_date, p_opening_balance,
-    total_sales, total_expenses, calculated_balance, p_actual_closing_balance,
-    p_actual_closing_balance - calculated_balance, nullif(trim(p_notes), '')
-  ) returning id into reconciliation_id;
+    ) values (
+      current_user_id, p_account, p_start_date, p_end_date, opening_balance_value,
+      total_sales, total_expenses, calculated_balance, p_actual_closing_balance,
+      p_actual_closing_balance - calculated_balance, nullif(trim(p_notes), '')
+    ) returning id into reconciliation_id;
+  else
+    update public.cashbook_reconciliations
+    set opening_balance = opening_balance_value,
+        sales_total = total_sales,
+        expenses_total = total_expenses,
+        calculated_closing_balance = calculated_balance,
+        actual_closing_balance = p_actual_closing_balance,
+        variance = p_actual_closing_balance - calculated_balance,
+        notes = nullif(trim(p_notes), ''),
+        reconciled_at = now()
+    where id = reconciliation_id;
+  end if;
 
   return reconciliation_id;
 end;
 $$;
 
-revoke all on function public.reconcile_cashbook(text, date, date, numeric, numeric, text) from public;
-grant execute on function public.reconcile_cashbook(text, date, date, numeric, numeric, text) to authenticated;
+revoke all on function public.reconcile_cashbook(text, date, date, numeric, text, numeric) from public;
+grant execute on function public.reconcile_cashbook(text, date, date, numeric, text, numeric) to authenticated;
 
 drop function if exists public.assign_invoice_payment_cashbook_account(uuid, text);
 create function public.assign_invoice_payment_cashbook_account(

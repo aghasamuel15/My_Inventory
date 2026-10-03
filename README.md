@@ -7,7 +7,8 @@ A Nigerian SME finance tracker for recording sales, expenses, customer debt, inv
 - Track products, stock levels, restocks, removals, and low-stock alerts
 - Show prioritized reorder alerts and suggested restock quantities
 - Record whether sales and expenses affect cash or bank balances
-- Reconcile cash and bank accounts by date range, opening balance, and actual closing balance
+- Automatically carry forward cash and bank opening balances, reconcile against counted/statement closing balances, and review per-account transaction details
+- Add, edit, and review cashbook adjustments for missing receipts or payments; matching reconciliations update automatically
 - Automatically deduct inventory when a product sale is recorded
 - Record expenses
 - Track customers who owe money
@@ -39,7 +40,7 @@ A Nigerian SME finance tracker for recording sales, expenses, customer debt, inv
 5. Open http://localhost:3000
 
 ## Supabase database
-For a new project, run the entire `supabase/schema.sql`, then `supabase/invoice_workflow.sql`, `supabase/mobile_features.sql`, and `supabase/cashbook_reconciliation.sql` in the Supabase SQL Editor. For an existing project, run `supabase/mobile_features.sql` if not already applied, then run `supabase/cashbook_reconciliation.sql` to enable cash/bank account tracking and reconciliations. In the SQL Editor, use Ctrl+A before Run; running only a selected excerpt will omit functions and policies defined later in the files. The scripts retain existing customer and sales data. Existing sales and expenses are marked “unassigned” because their payment account was not previously recorded; invoice payments are mapped to cash or bank based on their payment method, while “other” payments remain unassigned. Assign unassigned transactions in Cashbook before reconciling those periods.
+For a new project, run the entire `supabase/schema.sql`, then `supabase/invoice_workflow.sql`, `supabase/mobile_features.sql`, and `supabase/cashbook_reconciliation.sql` in the Supabase SQL Editor. For an existing project, run `supabase/mobile_features.sql` if not already applied, then run `supabase/cashbook_reconciliation.sql` to enable cash/bank account tracking and reconciliations. In the SQL Editor, use Ctrl+A before Run; running only a selected excerpt will omit functions and policies defined later in the files. The scripts retain existing customer and sales data. Existing sales and expenses are marked “unassigned” because their payment account was not previously recorded; invoice payments are mapped to cash or bank based on their payment method, while “other” payments remain unassigned. Assign unassigned transactions in Cashbook before reconciling those periods. Enter the initial opening balance for each account on its first reconciliation; later opening balances carry forward automatically from the prior saved actual closing balance. Reconciliations auto-save after all transactions have been assigned and an actual closing balance is entered.
 
 If you hit the exact error `Could not find the 'address' column of 'customers' in the schema cache`, run the minimal repair script in `supabase/repair_missing_customer_address.sql` first, then rerun the full schema script if needed. This ensures the column exists and forces PostgREST to refresh its schema cache.
 
