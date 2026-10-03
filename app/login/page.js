@@ -5,6 +5,22 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
 import { createClient } from '../../lib/supabaseClient';
 
+function getSafeNextPath(next) {
+  if (!next || !next.startsWith('/') || next.startsWith('//')) {
+    return '/dashboard';
+  }
+
+  try {
+    const destination = new URL(next, window.location.origin);
+    if (destination.origin !== window.location.origin) {
+      return '/dashboard';
+    }
+    return `${destination.pathname}${destination.search}${destination.hash}`;
+  } catch {
+    return '/dashboard';
+  }
+}
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -28,7 +44,7 @@ function LoginForm() {
         return;
       }
 
-      const next = searchParams.get('next') || '/dashboard';
+      const next = getSafeNextPath(searchParams.get('next'));
       setLoading(false);
       router.push(next);
       router.refresh();
