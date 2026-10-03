@@ -1,9 +1,23 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Papa from 'papaparse';
 import { createClient } from '../../../lib/supabaseClient';
 
 const formatNaira = (value) => `₦${Number(value || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
+
+function downloadCsv(rows, filename) {
+  const csv = Papa.unparse(rows);
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
 
 function toDateString(date) {
   const year = date.getFullYear();
@@ -35,6 +49,7 @@ export default function CashbookPage() {
   const [editingAdjustments, setEditingAdjustments] = useState({});
   const [loading, setLoading] = useState(true);
   const [autoSaving, setAutoSaving] = useState(false);
+  const [exportingId, setExportingId] = useState('');
   const [assigningId, setAssigningId] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
@@ -404,6 +419,128 @@ export default function CashbookPage() {
     await load({ resetReconciliation: false });
   }
 
+  async function exportReconciliation(reconciliation) {
+    setExportingId(reconciliation.id);
+    setErrorMessage('');
+    setStatusMessage('');
+
+    const [salesResult, expensesResult, invoicePaymentsResult, adjustmentsResult] = await Promise.all([
+      supabase
+        .from('sales')
+        .select('sale_date, product_name, description, amount')
+        .eq('payment_account', reconciliation.account)
+        .gte('sale_date', reconciliation.start_date)
+        .lte('sale_date', reconciliation.end_date),
+      supabase
+        .from('expenses')
+        .select('expense_date, category, description, amount')
+        .eq('payment_account', reconciliation.account)
+        .gte('expense_date', reconciliation.start_date)
+        .lte('expense_date', reconciliation.end_date),
+      supabase
+        .from('invoice_payments')
+        .select('payment_date, amount, reference, notes, invoice:invoices(invoice_number)')
+        .eq('cashbook_account', reconciliation.account)
+        .gte('payment_date', reconciliation.start_date)
+        .lte('payment_date', reconciliation.end_date),
+      supabase
+        .from('cashbook_adjustments')
+        .select('transaction_date, direction, amount, description')
+        .eq('account', reconciliation.account)
+        .gte('transaction_date', reconciliation.start_date)
+        .lte('transaction_date', reconciliation.end_date),
+    ]);
+
+    const failed = salesResult.error || expensesResult.error || invoicePaymentsResult.error || adjustmentsResult.error;
+    if (failed) {
+      setErrorMessage(failed.message || 'Could not load reconciliation details for the CSV.');
+      setExportingId('');
+      return;
+    }
+
+    const sales = salesResult.data || [];
+    const expenses = expensesResult.data || [];
+    const invoicePayments = invoicePaymentsResult.data || [];
+    const adjustments = adjustmentsResult.data || [];
+    const adjustmentIncome = adjustments
+      .filter((item) => item.direction === 'income')
+      .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    const adjustmentExpenses = adjustments
+      .filter((item) => item.direction === 'expense')
+      .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    const columns = [
+      'Record type',
+      'Account',
+      'Start date',
+      'End date',
+      'Saved at',
+      'Opening balance',
+      'Recorded income',
+      'Recorded expenses',
+      'Adjustment income',
+      'Adjustment expenses',
+      'Expected closing balance',
+      'Actual closing balance',
+      'Difference',
+      'Notes',
+      'Transaction date',
+      'Transaction type',
+      'Description',
+      'Direction',
+      'Amount',
+    ];
+    const summaryRow = [
+      'Reconciliation summary',
+      reconciliation.account,
+      reconciliation.start_date,
+      reconciliation.end_date,
+      reconciliation.reconciled_at,
+      reconciliation.opening_balance,
+      reconciliation.sales_total,
+      reconciliation.expenses_total,
+      adjustmentIncome,
+      adjustmentExpenses,
+      reconciliation.calculated_closing_balance,
+      reconciliation.actual_closing_balance,
+      reconciliation.variance,
+      reconciliation.notes || '',
+      '',
+      '',
+      '',
+      '',
+      '',
+    ];
+    const detailRows = [
+      ...sales.map((item) => [
+        'Transaction', reconciliation.account, '', '', '', '', '', '', '', '', '', '', '', '',
+        item.sale_date, 'Sale', item.product_name || item.description || 'Sale', 'Income', item.amount,
+      ]),
+      ...expenses.map((item) => [
+        'Transaction', reconciliation.account, '', '', '', '', '', '', '', '', '', '', '', '',
+        item.expense_date, 'Expense', item.category || item.description || 'Expense', 'Expense', item.amount,
+      ]),
+      ...invoicePayments.map((item) => [
+        'Transaction', reconciliation.account, '', '', '', '', '', '', '', '', '', '', '', '',
+        item.payment_date,
+        'Invoice payment',
+        item.invoice?.invoice_number ? `Invoice ${item.invoice.invoice_number}` : item.reference || item.notes || 'Invoice payment',
+        'Income',
+        item.amount,
+      ]),
+      ...adjustments.map((item) => [
+        'Transaction', reconciliation.account, '', '', '', '', '', '', '', '', '', '', '', '',
+        item.transaction_date, 'Adjustment', item.description, item.direction === 'income' ? 'Income' : 'Expense', item.amount,
+      ]),
+    ].sort((a, b) => String(a[14]).localeCompare(String(b[14])));
+
+    downloadCsv(
+      [columns, summaryRow, ...detailRows],
+      `cashbook-reconciliation-${reconciliation.account}-${reconciliation.start_date}-to-${reconciliation.end_date}.csv`,
+    );
+    setStatusMessage('Reconciliation CSV downloaded.');
+    setExportingId('');
+  }
+
   return (
     <div>
       <div className="mb-6">
@@ -711,17 +848,27 @@ export default function CashbookPage() {
                       <p><span className="block text-slate-500">Actual</span><span className="font-semibold">{formatNaira(item.actual_closing_balance)}</span></p>
                       <p><span className="block text-slate-500">Income / expenses</span><span className="font-semibold">{formatNaira(item.sales_total)} / {formatNaira(item.expenses_total)}</span></p>
                     </div>
-                    <button
-                      type="button"
-                      className="mt-3 min-h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-brand-700 hover:bg-brand-50"
-                      onClick={() => {
-                        setStartDate(item.start_date);
-                        setEndDate(item.end_date);
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                      }}
-                    >
-                      Review this reconciliation
-                    </button>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className="min-h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-brand-700 hover:bg-brand-50"
+                        onClick={() => {
+                          setStartDate(item.start_date);
+                          setEndDate(item.end_date);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                      >
+                        Review this reconciliation
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-secondary min-h-10"
+                        disabled={exportingId === item.id}
+                        onClick={() => exportReconciliation(item)}
+                      >
+                        {exportingId === item.id ? 'Preparing CSV...' : 'Download CSV'}
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>
