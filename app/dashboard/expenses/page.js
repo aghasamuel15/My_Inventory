@@ -95,7 +95,7 @@ export default function ExpensesPage() {
           <input className="input" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
         </div>
         <div className="md:col-span-5">
-          <button type="submit" disabled={saving} className="btn-primary">
+          <button type="submit" disabled={saving} className="btn-primary w-full sm:w-auto">
             {saving ? 'Saving...' : 'Add expense'}
           </button>
         </div>
@@ -104,8 +104,9 @@ export default function ExpensesPage() {
       {loading ? (
         <div>Loading expenses...</div>
       ) : (
-        <div className="card overflow-x-auto">
-          <table className="w-full text-left text-sm">
+        <>
+          <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:block">
+          <table className="w-full min-w-[560px] text-left text-sm">
             <thead>
               <tr className="border-b text-slate-500">
                 <th className="py-2">Date</th>
@@ -132,7 +133,24 @@ export default function ExpensesPage() {
               )}
             </tbody>
           </table>
-        </div>
+          </div>
+          <div className="space-y-3 md:hidden">
+            {expenses.length === 0 ? (
+              <div className="card text-center text-sm text-slate-500">No expenses recorded yet.</div>
+            ) : expenses.map((expense) => (
+              <article key={expense.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2 className="break-words font-semibold text-slate-900">{expense.category || 'Expense'}</h2>
+                    <p className="mt-1 text-xs text-slate-500">{expense.expense_date}</p>
+                  </div>
+                  <span className="shrink-0 font-bold text-red-600">{formatNaira(expense.amount)}</span>
+                </div>
+                <p className="mt-3 break-words border-t border-slate-100 pt-3 text-sm text-slate-600">{expense.description || 'No description'}</p>
+              </article>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

@@ -159,7 +159,7 @@ export default function InvoiceCreateForm({ customers }) {
       </div>
 
       {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
-      <button type="submit" disabled={saving || customers.length === 0} className="btn-primary disabled:cursor-not-allowed disabled:opacity-60">
+      <button type="submit" disabled={saving || customers.length === 0} className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto">
         {saving ? 'Creating document...' : documentType === 'quote' ? 'Create quote' : 'Create invoice'}
       </button>
       {customers.length === 0 && <p className="text-sm text-amber-700">Add a customer before creating an invoice.</p>}

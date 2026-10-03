@@ -40,7 +40,7 @@ function LoginForm() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-12">
-      <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-lg">
+      <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-5 shadow-lg sm:p-8">
         <div className="mb-6 text-center">
           <div className="text-2xl font-black text-brand-700">SME Tracker</div>
           <h1 className="mt-3 text-3xl font-bold text-slate-900">Welcome back</h1>

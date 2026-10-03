@@ -35,6 +35,25 @@ export default async function CustomerStatementPage({ params }) {
   const invoiced = (invoices || []).reduce((sum, invoice) => sum + Number(invoice.total || 0), 0);
   const paid = (invoices || []).reduce((sum, invoice) => sum + getInvoicePaidTotal(invoice), 0);
   const balance = (invoices || []).reduce((sum, invoice) => sum + getInvoiceBalance(invoice), 0);
+  const activity = (invoices || []).flatMap((invoice) => {
+    const entries = [{
+      key: `${invoice.id}-invoice`,
+      date: invoice.issue_date,
+      activity: `Invoice #${invoice.invoice_number || invoice.id}`,
+      reference: invoice.due_date ? `Due ${invoice.due_date}` : '—',
+      amount: Number(invoice.total || 0),
+    }];
+    for (const payment of invoice.payments || []) {
+      entries.push({
+        key: `${invoice.id}-${payment.reference || payment.payment_date}-${payment.amount}`,
+        date: payment.payment_date,
+        activity: `Payment (${(payment.method || 'other').replace('_', ' ')})`,
+        reference: payment.reference || '—',
+        amount: -Number(payment.amount || 0),
+      });
+    }
+    return entries;
+  }).sort((left, right) => String(right.date || '').localeCompare(String(left.date || '')));
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -45,7 +64,7 @@ export default async function CustomerStatementPage({ params }) {
       <section className="card">
         <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Customer statement</p>
         <h1 className="mt-1 text-2xl font-bold text-slate-900">{customer.name}</h1>
-        <p className="mt-1 text-sm text-slate-600">{[customer.email, customer.phone, customer.address].filter(Boolean).join(' · ')}</p>
+        <p className="mt-1 break-words text-sm text-slate-600">{[customer.email, customer.phone, customer.address].filter(Boolean).join(' · ')}</p>
         <p className="mt-1 text-xs text-slate-500">Generated {new Date().toLocaleDateString('en-NG')}</p>
 
         <div className="my-6 grid gap-3 sm:grid-cols-3">
@@ -54,29 +73,11 @@ export default async function CustomerStatementPage({ params }) {
           <div className="rounded-lg bg-slate-50 p-3"><div className="text-xs text-slate-500">Balance due</div><div className="font-bold text-red-700">{formatNaira(balance)}</div></div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+        <div className="hidden overflow-x-auto md:block">
+          <table className="w-full min-w-[560px] text-left text-sm">
             <thead><tr className="border-b text-slate-500"><th className="py-2">Date</th><th>Activity</th><th>Reference</th><th className="text-right">Amount</th></tr></thead>
             <tbody>
-              {(invoices || []).flatMap((invoice) => {
-                const entries = [{
-                  key: `${invoice.id}-invoice`,
-                  date: invoice.issue_date,
-                  activity: `Invoice #${invoice.invoice_number || invoice.id}`,
-                  reference: invoice.due_date ? `Due ${invoice.due_date}` : '—',
-                  amount: Number(invoice.total || 0),
-                }];
-                for (const payment of invoice.payments || []) {
-                  entries.push({
-                    key: `${invoice.id}-${payment.reference || payment.payment_date}-${payment.amount}`,
-                    date: payment.payment_date,
-                    activity: `Payment (${(payment.method || 'other').replace('_', ' ')})`,
-                    reference: payment.reference || '—',
-                    amount: -Number(payment.amount || 0),
-                  });
-                }
-                return entries;
-              }).sort((left, right) => String(right.date || '').localeCompare(String(left.date || ''))).map((entry) => (
+              {activity.map((entry) => (
                 <tr key={entry.key} className="border-b last:border-0">
                   <td className="py-2">{entry.date || '—'}</td>
                   <td>{entry.activity}</td>
@@ -87,6 +88,21 @@ export default async function CustomerStatementPage({ params }) {
               {(!invoices || invoices.length === 0) && <tr><td colSpan="4" className="py-6 text-center text-slate-500">No issued invoices for this customer.</td></tr>}
             </tbody>
           </table>
+        </div>
+        <div className="space-y-3 md:hidden">
+          {activity.length === 0 ? (
+            <p className="py-6 text-center text-sm text-slate-500">No issued invoices for this customer.</p>
+          ) : activity.map((entry) => (
+            <article key={entry.key} className="rounded-xl border border-slate-200 p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="break-words text-sm font-semibold text-slate-900">{entry.activity}</h2>
+                  <p className="mt-1 text-xs text-slate-500">{entry.date || '—'} · {entry.reference}</p>
+                </div>
+                <span className={`shrink-0 text-sm font-semibold ${entry.amount < 0 ? 'text-emerald-700' : 'text-slate-900'}`}>{formatNaira(entry.amount)}</span>
+              </div>
+            </article>
+          ))}
         </div>
       </section>
     </div>

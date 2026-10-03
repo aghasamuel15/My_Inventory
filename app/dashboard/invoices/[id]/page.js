@@ -101,7 +101,7 @@ export default async function InvoiceDetailPage({ params }) {
           </div>
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-slate-200">
+        <div className="hidden overflow-x-auto rounded-xl border border-slate-200 sm:block">
           <table className="w-full min-w-[560px] text-left text-sm">
             <thead className="bg-slate-50 text-slate-500">
               <tr>
@@ -130,6 +130,26 @@ export default async function InvoiceDetailPage({ params }) {
               )}
             </tbody>
           </table>
+        </div>
+        <div className="space-y-3 sm:hidden">
+          {(invoice.items || []).map((item) => (
+            <article key={item.id} className="rounded-xl border border-slate-200 p-3">
+              <h2 className="break-words font-semibold text-slate-900">{item.description}</h2>
+              <div className="mt-2 flex justify-between gap-3 text-sm text-slate-600">
+                <span>Qty {Number(item.quantity || 0)} × {formatNaira(item.unit_price)}</span>
+                <span className="shrink-0 font-semibold text-slate-900">{formatNaira(item.amount)}</span>
+              </div>
+            </article>
+          ))}
+          {(!invoice.items || invoice.items.length === 0) && (
+            <article className="rounded-xl border border-slate-200 p-3">
+              <h2 className="font-semibold text-slate-900">{invoice.description || invoice.notes || 'Invoice amount'}</h2>
+              <div className="mt-2 flex justify-between gap-3 text-sm text-slate-600">
+                <span>Qty 1 × {formatNaira(invoice.total)}</span>
+                <span className="shrink-0 font-semibold text-slate-900">{formatNaira(invoice.total)}</span>
+              </div>
+            </article>
+          )}
         </div>
 
         <div className="mt-8 flex justify-end">

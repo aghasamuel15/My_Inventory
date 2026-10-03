@@ -3,9 +3,9 @@ import Link from 'next/link';
 export default function HomePage() {
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
+      <header className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-4 sm:px-6 sm:py-5">
         <div className="text-xl font-bold text-brand-700">SME Tracker</div>
-        <nav className="flex items-center gap-3">
+        <nav className="flex shrink-0 items-center gap-2 sm:gap-3">
           <Link href="/login" className="rounded-full border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-white">
             Log in
           </Link>
@@ -15,23 +15,23 @@ export default function HomePage() {
         </nav>
       </header>
 
-      <section className="mx-auto grid max-w-6xl items-center gap-8 px-6 py-16 lg:grid-cols-2">
+      <section className="mx-auto grid max-w-6xl items-center gap-8 px-4 py-10 sm:px-6 sm:py-16 lg:grid-cols-2">
         <div>
           <span className="inline-flex rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
             Built for Nigerian SMEs
           </span>
-          <h1 className="mt-6 text-4xl font-black leading-tight text-slate-900 md:text-6xl">
+          <h1 className="mt-6 text-3xl font-black leading-tight text-slate-900 sm:text-4xl md:text-6xl">
             Track sales, expenses, debt and invoices in one place.
           </h1>
-          <p className="mt-5 max-w-xl text-lg text-slate-600">
+          <p className="mt-5 max-w-xl text-base text-slate-600 sm:text-lg">
             Keep your business finances clean, spot your profit faster, and send invoices that customers can pay quickly.
           </p>
 
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link href="/signup" className="rounded-full bg-brand-600 px-5 py-3 font-semibold text-white hover:bg-brand-700">
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <Link href="/signup" className="rounded-full bg-brand-600 px-5 py-3 text-center font-semibold text-white hover:bg-brand-700">
               Create free account
             </Link>
-            <Link href="/login" className="rounded-full border border-slate-300 bg-white px-5 py-3 font-semibold text-slate-700 hover:bg-slate-100">
+            <Link href="/login" className="rounded-full border border-slate-300 bg-white px-5 py-3 text-center font-semibold text-slate-700 hover:bg-slate-100">
               Sign in
             </Link>
           </div>
@@ -65,7 +65,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-6 pb-20">
+      <section className="mx-auto max-w-6xl px-4 pb-20 sm:px-6">
         <div className="grid gap-4 md:grid-cols-3">
           {[
             ['Record sales & expenses', 'Capture every payment and outgoing cost in seconds.'],

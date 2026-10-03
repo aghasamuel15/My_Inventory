@@ -123,8 +123,8 @@ export default function CustomersPage() {
             <span className="font-bold text-red-600">{formatNaira(totalOwed)}</span>
           </div>
 
-          <div className="card overflow-x-auto">
-            <table className="w-full text-left text-sm">
+          <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:block">
+            <table className="w-full min-w-[680px] text-left text-sm">
               <thead>
                 <tr className="border-b text-slate-500">
                   <th className="py-2">Name</th>
@@ -162,6 +162,30 @@ export default function CustomersPage() {
                 )}
               </tbody>
             </table>
+          </div>
+          <div className="space-y-3 md:hidden">
+            {customers.length === 0 ? (
+              <div className="card text-center text-sm text-slate-500">No customers yet.</div>
+            ) : customers.map((customer) => (
+              <article key={customer.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2 className="break-words font-semibold text-slate-900">{customer.name}</h2>
+                    <p className="mt-1 break-all text-sm text-slate-600">{customer.phone || customer.email || 'No contact details'}</p>
+                  </div>
+                  <div className={`shrink-0 text-right font-bold ${customer.owed > 0 ? 'text-red-600' : 'text-slate-800'}`}>
+                    {formatNaira(customer.owed)}
+                    <div className="text-[11px] font-medium text-slate-500">owed</div>
+                  </div>
+                </div>
+                {customer.phone && customer.email && <p className="mt-2 break-all text-xs text-slate-500">{customer.email}</p>}
+                {customer.address && <p className="mt-2 break-words text-xs text-slate-500">{customer.address}</p>}
+                <div className="mt-3 flex gap-2 border-t border-slate-100 pt-3">
+                  <a href={`/dashboard/customers/${customer.id}/statement`} className="btn-secondary flex-1 text-center text-sm">Statement</a>
+                  <button onClick={() => handleDelete(customer.id)} className="rounded-xl border border-red-100 px-4 py-2 text-sm font-semibold text-red-600">Delete</button>
+                </div>
+              </article>
+            ))}
           </div>
         </>
       )}

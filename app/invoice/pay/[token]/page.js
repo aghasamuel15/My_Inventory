@@ -32,15 +32,15 @@ export default async function PublicInvoicePaymentPage({ params }) {
   const balance = getInvoiceBalance(invoice);
 
   return (
-    <main className="mx-auto mt-12 max-w-xl rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+    <main className="mx-4 my-5 max-w-xl rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:mx-auto sm:mt-12 sm:p-8">
       <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">{profile?.business_name || 'My Business'}</p>
       <h1 className="mt-2 text-2xl font-bold text-slate-900">Invoice #{invoice.invoice_number || invoice.id}</h1>
       <p className="mt-2 text-slate-600">Billed to {invoice.customer?.name || 'Customer'}</p>
       <dl className="my-6 space-y-3 border-y border-slate-200 py-5">
-        <div className="flex justify-between"><dt>Total</dt><dd>{formatNaira(invoice.total)}</dd></div>
-        <div className="flex justify-between"><dt>Paid</dt><dd>{formatNaira(getInvoicePaidTotal(invoice))}</dd></div>
-        <div className="flex justify-between font-bold"><dt>Balance due</dt><dd>{formatNaira(balance)}</dd></div>
-        <div className="flex justify-between text-sm text-slate-600"><dt>Due date</dt><dd>{invoice.due_date || '—'}</dd></div>
+        <div className="flex justify-between gap-3"><dt>Total</dt><dd className="text-right">{formatNaira(invoice.total)}</dd></div>
+        <div className="flex justify-between gap-3"><dt>Paid</dt><dd className="text-right">{formatNaira(getInvoicePaidTotal(invoice))}</dd></div>
+        <div className="flex justify-between gap-3 font-bold"><dt>Balance due</dt><dd className="text-right">{formatNaira(balance)}</dd></div>
+        <div className="flex justify-between gap-3 text-sm text-slate-600"><dt>Due date</dt><dd className="text-right">{invoice.due_date || '—'}</dd></div>
       </dl>
       {balance > 0 ? (
         <PayInvoiceButton token={params.token} />

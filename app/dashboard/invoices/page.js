@@ -82,8 +82,9 @@ export default function InvoicesPage() {
       {loading ? (
         <div>Loading invoices...</div>
       ) : (
-        <div className="card overflow-x-auto">
-          <table className="w-full text-left text-sm">
+        <>
+          <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:block">
+          <table className="w-full min-w-[720px] text-left text-sm">
             <thead>
               <tr className="border-b text-slate-500">
                 <th className="py-2">Customer</th>
@@ -125,7 +126,35 @@ export default function InvoicesPage() {
               )}
             </tbody>
           </table>
-        </div>
+          </div>
+          <div className="space-y-3 md:hidden">
+            {invoices.length === 0 ? (
+              <div className="card text-center text-sm text-slate-500">No invoices created yet.</div>
+            ) : invoices.map((invoice) => {
+              const paid = getInvoicePaidTotal(invoice);
+              const balance = getInvoiceBalance(invoice);
+              const isQuote = invoice.document_type === 'quote';
+              const isOverdue = !isQuote && invoice.due_date && invoice.due_date < today && balance > 0;
+              const status = isQuote ? 'quote' : invoice.status === 'draft' ? 'draft' : balance <= 0 ? 'paid' : isOverdue ? 'overdue' : paid > 0 ? 'partial' : 'unpaid';
+              return (
+                <article key={invoice.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h2 className="break-words font-semibold text-slate-900">{invoice.customer?.name || 'Customer'}</h2>
+                      <p className="mt-1 text-xs text-slate-500">{isQuote ? 'Quote' : 'Invoice'} · Due {invoice.due_date || 'not set'}</p>
+                    </div>
+                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${isOverdue ? 'bg-red-50 text-red-700' : 'bg-slate-100 text-slate-700'}`}>{status}</span>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-3 border-t border-slate-100 pt-3 text-sm">
+                    <div><div className="text-xs text-slate-500">Total</div><div className="mt-0.5 font-semibold">{formatNaira(invoice.total)}</div></div>
+                    <div><div className="text-xs text-slate-500">Balance</div><div className="mt-0.5 font-semibold">{formatNaira(balance)}</div></div>
+                  </div>
+                  <a href={`/dashboard/invoices/${invoice.id}`} className="btn-secondary mt-3 block w-full text-center text-sm">View {isQuote ? 'quote' : 'invoice'}</a>
+                </article>
+              );
+            })}
+          </div>
+        </>
       )}
     </div>
   );
