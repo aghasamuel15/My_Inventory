@@ -56,7 +56,7 @@ export default function Sidebar() {
 
   return (
     <>
-      <aside className="relative z-40 w-full shrink-0 overflow-hidden border-b border-[#25483d] bg-[#102e25] text-white print:hidden md:sticky md:top-0 md:h-screen md:min-h-screen md:w-[264px] md:border-b-0 md:border-r">
+      <aside className="relative z-40 w-full shrink-0 overflow-hidden border-b border-[#25483d] bg-[#102e25] text-white print:hidden md:sticky md:top-0 md:flex md:h-screen md:min-h-0 md:w-[264px] md:flex-col md:border-b-0 md:border-r">
         <div className="pointer-events-none absolute -right-24 -top-20 hidden h-64 w-64 rounded-full border border-white/[0.06] md:block" />
         <div className="pointer-events-none absolute -right-12 -top-8 hidden h-40 w-40 rounded-full border border-white/[0.06] md:block" />
         <div className="relative flex items-center justify-between border-b border-white/10 px-4 py-3.5 md:px-6 md:py-6">
@@ -74,7 +74,7 @@ export default function Sidebar() {
           </Link>
           <span className="hidden rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-white/55 md:inline-flex">Workspace</span>
         </div>
-        <nav id="dashboard-navigation" aria-label="Main navigation" className="relative hidden space-y-1 px-3 py-5 md:block">
+        <nav id="dashboard-navigation" aria-label="Main navigation" className="relative hidden min-h-0 space-y-1 overflow-y-auto overscroll-contain px-3 py-5 pb-8 md:block md:flex-1">
           <p className="mb-3 px-3 text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">Workspace</p>
           {dashboardNavigation.filter((link) => !link.feature || features === null || features === undefined || features.includes(link.feature)).map((link) => (
             <Link
@@ -99,7 +99,7 @@ export default function Sidebar() {
             </button>
           </div>
         </nav>
-        <div className="absolute inset-x-0 bottom-0 hidden border-t border-white/10 px-6 py-4 md:block">
+        <div className="relative hidden shrink-0 border-t border-white/10 bg-[#102e25] px-6 py-4 md:block">
           <div className="flex items-center gap-2 text-[10px] text-white/45">
             <span className="h-1.5 w-1.5 rounded-full bg-[#9bc5a8]" />
             Your business, in good order
