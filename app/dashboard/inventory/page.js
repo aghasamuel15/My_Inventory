@@ -1,9 +1,53 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Papa from 'papaparse';
 import { createClient } from '../../../lib/supabaseClient';
 
 const formatNaira = (value) => `₦${Number(value || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
+
+function downloadStockReport(products, filename) {
+  const fields = [
+    'Product',
+    'SKU',
+    'Unit',
+    'Quantity in stock',
+    'Cost price per unit',
+    'Selling price per unit',
+    'Stock value at cost',
+    'Potential sales value',
+    'Low-stock threshold',
+    'Stock status',
+  ];
+  const data = products.map((product) => {
+    const quantity = Number(product.quantity || 0);
+    const costPrice = Number(product.cost_price || 0);
+    const sellingPrice = Number(product.selling_price || 0);
+
+    return [
+      product.name,
+      product.sku || '',
+      product.unit,
+      quantity,
+      costPrice,
+      sellingPrice,
+      quantity * costPrice,
+      quantity * sellingPrice,
+      Number(product.low_stock_threshold || 0),
+      quantity <= Number(product.low_stock_threshold || 0) ? 'Low stock' : 'In stock',
+    ];
+  });
+  const csv = Papa.unparse({ fields, data });
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
 
 const emptyProduct = {
   name: '', sku: '', unit: 'unit', cost_price: '', selling_price: '', low_stock_threshold: '5', opening_stock: '0',
@@ -134,6 +178,11 @@ export default function InventoryPage() {
     .filter((product) => Number(product.quantity) <= Number(product.low_stock_threshold))
     .sort((a, b) => suggestedRestock(b) - suggestedRestock(a));
 
+  function exportStockReport() {
+    const reportDate = new Date().toISOString().slice(0, 10);
+    downloadStockReport(products, `stock-report-${reportDate}.csv`);
+  }
+
   function useRestockSuggestion(product) {
     const quantity = suggestedRestock(product);
     if (!quantity) return;
@@ -148,8 +197,13 @@ export default function InventoryPage() {
           <h1 className="text-2xl font-bold text-slate-900">Inventory</h1>
           <p className="mt-1 text-sm text-slate-500">Stock levels update automatically when you record a sale.</p>
         </div>
-        <div className={`text-sm font-semibold ${lowStockCount ? 'text-amber-700' : 'text-emerald-700'}`}>
-          {lowStockCount ? `${lowStockCount} item${lowStockCount === 1 ? '' : 's'} at or below reorder level` : 'Stock levels healthy'}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className={`text-sm font-semibold ${lowStockCount ? 'text-amber-700' : 'text-emerald-700'}`}>
+            {lowStockCount ? `${lowStockCount} item${lowStockCount === 1 ? '' : 's'} at or below reorder level` : 'Stock levels healthy'}
+          </div>
+          <button type="button" onClick={exportStockReport} disabled={loading} className="btn-secondary text-sm disabled:cursor-wait disabled:opacity-60">
+            Download stock report
+          </button>
         </div>
       </div>
 
