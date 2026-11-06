@@ -49,15 +49,17 @@ export default function AccountSettings() {
     }
 
     setSavingPassword(true);
-    const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
-    setSavingPassword(false);
-    if (updateError) {
-      setError(updateError.message);
-      return;
+    try {
+      const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+      if (updateError) throw updateError;
+      setNewPassword('');
+      setConfirmPassword('');
+      setPasswordMessage('Your password has been updated.');
+    } catch (updateError) {
+      setError(updateError.message || 'Could not update your password.');
+    } finally {
+      setSavingPassword(false);
     }
-    setNewPassword('');
-    setConfirmPassword('');
-    setPasswordMessage('Your password has been updated.');
   }
 
   async function sendResetEmail() {
@@ -69,14 +71,16 @@ export default function AccountSettings() {
     }
 
     setSendingReset(true);
-    const redirectTo = new URL('/reset-password', window.location.origin).toString();
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
-    setSendingReset(false);
-    if (resetError) {
-      setError(resetError.message);
-      return;
+    try {
+      const redirectTo = new URL('/reset-password', window.location.origin).toString();
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+      if (resetError) throw resetError;
+      setResetMessage(`Password reset instructions were sent to ${email}. Check your inbox and spam folder.`);
+    } catch (resetError) {
+      setError(resetError.message || 'Could not send a password reset email.');
+    } finally {
+      setSendingReset(false);
     }
-    setResetMessage(`Password reset instructions were sent to ${email}. Check your inbox and spam folder.`);
   }
 
   return (

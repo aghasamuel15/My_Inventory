@@ -49,7 +49,7 @@ export default function Sidebar() {
       Invoices: <><path d="M6 3.5h8l4 4V20l-2-1.2L14 20l-2-1.2L10 20l-2-1.2L6 20z" /><path d="M14 3.5V8h4M9 12h6M9 16h6" /></>,
       'Recurring invoices': <><path d="M20 7v5h-5" /><path d="M4 17v-5h5" /><path d="M5.5 9a7 7 0 0 1 11.6-2L20 12M4 12l2.9 5a7 7 0 0 0 11.6-2" /></>,
       Reports: <><path d="M4 19V5" /><path d="M4 19h17" /><path d="M8 16v-4M13 16V8M18 16v-7" /></>,
-      'Business profile': <><circle cx="12" cy="8" r="3.5" /><path d="M5 20a7 7 0 0 1 14 0" /><path d="M19 5v4M17 7h4" /></>,
+      Settings: <><circle cx="12" cy="12" r="3" /><path d="m19.4 15 .1.1 1.4 1.1-1.4 2.4-1.7-.7a7.8 7.8 0 0 1-1.8 1l-.3 1.8h-2.8l-.3-1.8a7.8 7.8 0 0 1-1.8-1l-1.7.7-1.4-2.4L7.1 15a7.6 7.6 0 0 1 0-2l-.1-.1-1.4-1.1L7 9.4l1.7.7a7.8 7.8 0 0 1 1.8-1l.3-1.8h2.8l.3 1.8a7.8 7.8 0 0 1 1.8 1l1.7-.7 1.4 2.4-1.4 1.1a7.6 7.6 0 0 1 0 2Z" /></>,
     };
     return <NavIcon>{icons[label] || <circle cx="12" cy="12" r="8" />}</NavIcon>;
   };

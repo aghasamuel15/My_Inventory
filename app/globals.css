@@ -263,6 +263,22 @@ a:focus-visible {
   color: #e4c990;
 }
 
+:root[data-theme="dark"] [class~="bg-emerald-50"],
+:root[data-theme="dark"] [class~="bg-green-50"],
+:root[data-theme="dark"] [class~="bg-brand-50"] {
+  background-color: #20372a;
+}
+
+:root[data-theme="dark"] [class~="bg-amber-50"],
+:root[data-theme="dark"] [class~="bg-yellow-50"] {
+  background-color: #382f20;
+}
+
+:root[data-theme="dark"] [class~="bg-red-50"],
+:root[data-theme="dark"] [class~="bg-rose-50"] {
+  background-color: #392624;
+}
+
 :root[data-theme="dark"] [class~="text-slate-900"],
 :root[data-theme="dark"] [class~="text-slate-800"],
 :root[data-theme="dark"] [class~="text-slate-700"],
@@ -279,6 +295,22 @@ a:focus-visible {
 :root[data-theme="dark"] [class~="text-[#738078]"],
 :root[data-theme="dark"] [class~="text-[#87938b]"] {
   color: #a5b2a8;
+}
+
+:root[data-theme="dark"] [class~="text-brand-700"],
+:root[data-theme="dark"] [class~="text-emerald-700"],
+:root[data-theme="dark"] [class~="text-green-700"] {
+  color: #9dc9a7;
+}
+
+:root[data-theme="dark"] [class~="text-amber-700"],
+:root[data-theme="dark"] [class~="text-yellow-700"] {
+  color: #e4c990;
+}
+
+:root[data-theme="dark"] [class~="text-red-700"],
+:root[data-theme="dark"] [class~="text-rose-700"] {
+  color: #e7a49a;
 }
 
 :root[data-theme="dark"] [class~="border-slate-100"],
@@ -350,6 +382,22 @@ a:focus-visible {
     color: #c5dfca;
   }
 
+  :root[data-theme="system"] [class~="bg-emerald-50"],
+  :root[data-theme="system"] [class~="bg-green-50"],
+  :root[data-theme="system"] [class~="bg-brand-50"] {
+    background-color: #20372a;
+  }
+
+  :root[data-theme="system"] [class~="bg-amber-50"],
+  :root[data-theme="system"] [class~="bg-yellow-50"] {
+    background-color: #382f20;
+  }
+
+  :root[data-theme="system"] [class~="bg-red-50"],
+  :root[data-theme="system"] [class~="bg-rose-50"] {
+    background-color: #392624;
+  }
+
   :root[data-theme="system"] [class~="text-slate-900"],
   :root[data-theme="system"] [class~="text-slate-800"],
   :root[data-theme="system"] [class~="text-slate-700"],
@@ -366,6 +414,22 @@ a:focus-visible {
   :root[data-theme="system"] [class~="text-[#738078]"],
   :root[data-theme="system"] [class~="text-[#87938b]"] {
     color: #a5b2a8;
+  }
+
+  :root[data-theme="system"] [class~="text-brand-700"],
+  :root[data-theme="system"] [class~="text-emerald-700"],
+  :root[data-theme="system"] [class~="text-green-700"] {
+    color: #9dc9a7;
+  }
+
+  :root[data-theme="system"] [class~="text-amber-700"],
+  :root[data-theme="system"] [class~="text-yellow-700"] {
+    color: #e4c990;
+  }
+
+  :root[data-theme="system"] [class~="text-red-700"],
+  :root[data-theme="system"] [class~="text-rose-700"] {
+    color: #e7a49a;
   }
 
   :root[data-theme="system"] [class~="border-slate-100"],
