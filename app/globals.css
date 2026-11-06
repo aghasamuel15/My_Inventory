@@ -192,3 +192,205 @@ a:focus-visible {
     touch-action: manipulation;
   }
 }
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-canvas: #101914;
+  --surface-card: #18231d;
+  --ink-primary: #e7eee8;
+  --ink-muted: #a3b1a7;
+  --line-subtle: #304037;
+  --brand-deep: #d7e8dc;
+  --brand-primary: #83b99c;
+  --brand-soft: #20352a;
+  --accent-gold: #d0b27a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"] {
+    color-scheme: dark;
+    --surface-canvas: #101914;
+    --surface-card: #18231d;
+    --ink-primary: #e7eee8;
+    --ink-muted: #a3b1a7;
+    --line-subtle: #304037;
+    --brand-deep: #d7e8dc;
+    --brand-primary: #83b99c;
+    --brand-soft: #20352a;
+    --accent-gold: #d0b27a;
+  }
+}
+
+:root[data-theme="dark"] body {
+  background: var(--surface-canvas);
+  color: var(--ink-primary);
+}
+
+:root[data-theme="dark"] .bg-white,
+:root[data-theme="dark"] .card,
+:root[data-theme="dark"] [class~="bg-white/95"],
+:root[data-theme="dark"] [class~="bg-white/90"],
+:root[data-theme="dark"] [class~="bg-white/80"],
+:root[data-theme="dark"] [class*="bg-[#fbfcf9]"],
+:root[data-theme="dark"] [class*="bg-[#ffffff]"] {
+  background-color: var(--surface-card);
+  color: var(--ink-primary);
+  border-color: var(--line-subtle);
+}
+
+:root[data-theme="dark"] [class~="bg-slate-50"],
+:root[data-theme="dark"] [class~="bg-slate-100"],
+:root[data-theme="dark"] [class*="bg-[#f5f5f0]"],
+:root[data-theme="dark"] [class*="bg-[#fbfcfa]"],
+:root[data-theme="dark"] [class*="bg-[#f7f8f5]"],
+:root[data-theme="dark"] [class*="bg-[#f8faf8]"],
+:root[data-theme="dark"] [class*="bg-[#f0f3ef]"],
+:root[data-theme="dark"] [class*="bg-[#f7faf7]"] {
+  background-color: #202c25;
+  color: var(--ink-primary);
+}
+
+:root[data-theme="dark"] [class*="bg-[#f1f7f1]"],
+:root[data-theme="dark"] [class*="bg-[#eaf3ed]"],
+:root[data-theme="dark"] [class*="bg-[#e6f0e7]"] {
+  background-color: #20372a;
+  color: #c5dfca;
+}
+
+:root[data-theme="dark"] [class*="bg-[#fbf6eb]"],
+:root[data-theme="dark"] [class*="bg-[#f7f1e7]"] {
+  background-color: #382f20;
+  color: #e4c990;
+}
+
+:root[data-theme="dark"] [class~="text-slate-900"],
+:root[data-theme="dark"] [class~="text-slate-800"],
+:root[data-theme="dark"] [class~="text-slate-700"],
+:root[data-theme="dark"] [class~="text-[#20372c]"],
+:root[data-theme="dark"] [class~="text-[#263b30]"],
+:root[data-theme="dark"] [class~="text-[#2c4035]"],
+:root[data-theme="dark"] [class~="text-[#17251f]"] {
+  color: #e3ebe4;
+}
+
+:root[data-theme="dark"] [class~="text-slate-600"],
+:root[data-theme="dark"] [class~="text-slate-500"],
+:root[data-theme="dark"] [class~="text-[#68756f]"],
+:root[data-theme="dark"] [class~="text-[#738078]"],
+:root[data-theme="dark"] [class~="text-[#87938b]"] {
+  color: #a5b2a8;
+}
+
+:root[data-theme="dark"] [class~="border-slate-100"],
+:root[data-theme="dark"] [class~="border-slate-200"],
+:root[data-theme="dark"] [class*="border-[#e"],
+:root[data-theme="dark"] [class*="border-[#d"] {
+  border-color: #34443a;
+}
+
+:root[data-theme="dark"] .input,
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea {
+  border-color: #3a4b40;
+  background-color: #18231d;
+  color: #e3ebe4;
+}
+
+:root[data-theme="dark"] .input::placeholder,
+:root[data-theme="dark"] input::placeholder,
+:root[data-theme="dark"] textarea::placeholder {
+  color: #87958a;
+}
+
+:root[data-theme="dark"] .btn-secondary {
+  border-color: #3a4b40;
+  background-color: #202c25;
+  color: #e3ebe4;
+}
+
+:root[data-theme="dark"] table tbody tr:hover {
+  background-color: #202c25;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"] body {
+    background: var(--surface-canvas);
+    color: var(--ink-primary);
+  }
+
+  :root[data-theme="system"] .bg-white,
+  :root[data-theme="system"] .card,
+  :root[data-theme="system"] [class~="bg-white/95"],
+  :root[data-theme="system"] [class~="bg-white/90"],
+  :root[data-theme="system"] [class~="bg-white/80"],
+  :root[data-theme="system"] [class*="bg-[#fbfcf9]"],
+  :root[data-theme="system"] [class*="bg-[#ffffff]"] {
+    background-color: var(--surface-card);
+    color: var(--ink-primary);
+    border-color: var(--line-subtle);
+  }
+
+  :root[data-theme="system"] [class~="bg-slate-50"],
+  :root[data-theme="system"] [class~="bg-slate-100"],
+  :root[data-theme="system"] [class*="bg-[#f5f5f0]"],
+  :root[data-theme="system"] [class*="bg-[#fbfcfa]"],
+  :root[data-theme="system"] [class*="bg-[#f7f8f5]"],
+  :root[data-theme="system"] [class*="bg-[#f8faf8]"],
+  :root[data-theme="system"] [class*="bg-[#f0f3ef]"],
+  :root[data-theme="system"] [class*="bg-[#f7faf7]"] {
+    background-color: #202c25;
+    color: var(--ink-primary);
+  }
+
+  :root[data-theme="system"] [class*="bg-[#f1f7f1]"],
+  :root[data-theme="system"] [class*="bg-[#eaf3ed]"],
+  :root[data-theme="system"] [class*="bg-[#e6f0e7]"] {
+    background-color: #20372a;
+    color: #c5dfca;
+  }
+
+  :root[data-theme="system"] [class~="text-slate-900"],
+  :root[data-theme="system"] [class~="text-slate-800"],
+  :root[data-theme="system"] [class~="text-slate-700"],
+  :root[data-theme="system"] [class~="text-[#20372c]"],
+  :root[data-theme="system"] [class~="text-[#263b30]"],
+  :root[data-theme="system"] [class~="text-[#2c4035]"],
+  :root[data-theme="system"] [class~="text-[#17251f]"] {
+    color: #e3ebe4;
+  }
+
+  :root[data-theme="system"] [class~="text-slate-600"],
+  :root[data-theme="system"] [class~="text-slate-500"],
+  :root[data-theme="system"] [class~="text-[#68756f]"],
+  :root[data-theme="system"] [class~="text-[#738078]"],
+  :root[data-theme="system"] [class~="text-[#87938b]"] {
+    color: #a5b2a8;
+  }
+
+  :root[data-theme="system"] [class~="border-slate-100"],
+  :root[data-theme="system"] [class~="border-slate-200"],
+  :root[data-theme="system"] [class*="border-[#e"],
+  :root[data-theme="system"] [class*="border-[#d"] {
+    border-color: #34443a;
+  }
+
+  :root[data-theme="system"] .input,
+  :root[data-theme="system"] input,
+  :root[data-theme="system"] select,
+  :root[data-theme="system"] textarea {
+    border-color: #3a4b40;
+    background-color: #18231d;
+    color: #e3ebe4;
+  }
+
+  :root[data-theme="system"] .btn-secondary {
+    border-color: #3a4b40;
+    background-color: #202c25;
+    color: #e3ebe4;
+  }
+
+  :root[data-theme="system"] table tbody tr:hover {
+    background-color: #202c25;
+  }
+}
