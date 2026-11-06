@@ -113,32 +113,32 @@ export default function InvoicesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-[30px] border border-violet-200 bg-gradient-to-r from-slate-950 via-violet-900 to-indigo-800 p-5 text-white shadow-[0_22px_44px_rgba(79,70,229,0.18)] sm:p-6">
+      <div className="rounded-[30px] border border-[#e1e7df] bg-[#f5f5f0] p-5 text-[#20372c] shadow-[0_12px_30px_rgba(31,51,41,0.05)] sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-violet-200">Financial overview</p>
-            <h1 className="mt-2 text-2xl font-black tracking-[-0.04em] sm:text-3xl">Invoices</h1>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#927b56]">Financial overview</p>
+            <h1 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-[#20372c] sm:text-3xl">Invoices</h1>
           </div>
-          <div className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-3 py-2 text-sm font-medium text-violet-50">
+          <div className="inline-flex items-center rounded-full border border-[#dce4de] bg-white/80 px-3 py-2 text-sm font-medium text-[#52665a]">
             {invoices.length} total records
           </div>
         </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-[24px] border border-indigo-200 bg-gradient-to-br from-indigo-50 via-white to-indigo-100 p-4 shadow-[0_12px_28px_rgba(99,102,241,0.08)]">
-          <div className="text-sm font-medium text-slate-500">Outstanding balance</div>
-          <div className="mt-3 text-3xl font-black tracking-[-0.05em] text-slate-900">{formatNaira(outstanding)}</div>
+        <div className="rounded-[24px] border border-[#dce8df] bg-gradient-to-br from-[#f1f7f1] via-white to-[#eaf3ed] p-4 shadow-[0_12px_28px_rgba(31,71,49,0.06)]">
+          <div className="text-sm font-medium text-[#68756f]">Outstanding balance</div>
+          <div className="mt-3 text-3xl font-bold tabular-nums tracking-normal text-[#20372c]">{formatNaira(outstanding)}</div>
         </div>
-        <div className="rounded-[24px] border border-rose-200 bg-gradient-to-br from-rose-50 via-white to-rose-100 p-4 shadow-[0_12px_28px_rgba(244,63,94,0.08)]">
-          <div className="text-sm font-medium text-slate-500">Overdue ({overdue.length})</div>
-          <div className="mt-3 text-3xl font-black tracking-[-0.05em] text-red-700">{formatNaira(overdueBalance)}</div>
+        <div className="rounded-[24px] border border-[#eadfcf] bg-gradient-to-br from-[#fbf7ef] via-white to-[#f7f1e7] p-4 shadow-[0_12px_28px_rgba(124,92,48,0.05)]">
+          <div className="text-sm font-medium text-[#68756f]">Overdue ({overdue.length})</div>
+          <div className="mt-3 text-3xl font-bold tabular-nums tracking-normal text-[#8b6740]">{formatNaira(overdueBalance)}</div>
         </div>
       </div>
 
       {canWriteBusinessData(businessRole) && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="mb-3 text-lg font-semibold text-slate-900">Create an invoice</h2>
+        <div className="rounded-[24px] border border-[#e3e9e2] bg-white p-4 shadow-[0_8px_24px_rgba(31,51,41,0.045)] sm:p-6">
+          <h2 className="mb-4 text-lg font-semibold tracking-[-0.02em] text-[#20372c]">Create an invoice</h2>
           <InvoiceCreateForm customers={customers} />
         </div>
       )}
@@ -150,7 +150,7 @@ export default function InvoicesPage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-sm">Loading invoices...</div>
       ) : (
         <>
-          <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:block">
+          <div className="hidden overflow-x-auto rounded-[24px] border border-[#e3e9e2] bg-white p-4 shadow-[0_8px_24px_rgba(31,51,41,0.045)] md:block">
             <table className="w-full min-w-[780px] text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-slate-500">
@@ -177,12 +177,12 @@ export default function InvoicesPage() {
                       <td className="px-3 py-3">
                         <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${
                           isOverdue
-                            ? 'bg-red-100 text-red-700'
+                            ? 'bg-[#fbefed] text-[#a9483e]'
                             : status === 'paid'
-                              ? 'bg-emerald-100 text-emerald-700'
+                              ? 'bg-[#eaf3ed] text-[#176b52]'
                               : status === 'partial'
-                                ? 'bg-amber-100 text-amber-700'
-                                : 'bg-slate-100 text-slate-700'
+                                ? 'bg-[#f7f1e7] text-[#98743c]'
+                                : 'bg-[#f0f3ef] text-[#68756f]'
                         }`}>
                           {status}
                         </span>
@@ -191,7 +191,7 @@ export default function InvoicesPage() {
                       <td className="px-3 py-3 text-right font-medium text-slate-700">{formatNaira(balance)}</td>
                       <td className="px-3 py-3 text-right">
                         <div className="flex flex-col items-end gap-2">
-                          <a href={`/dashboard/invoices/${invoice.id}`} className="font-semibold text-violet-700 transition hover:text-violet-900 hover:underline">
+                          <a href={`/dashboard/invoices/${invoice.id}`} className="font-semibold text-[#176b52] transition hover:text-[#12392e] hover:underline">
                             View
                           </a>
                           {canMarkPaid && (
@@ -199,7 +199,7 @@ export default function InvoicesPage() {
                               type="button"
                               onClick={() => markInvoiceAsPaid(invoice.id, balance)}
                               disabled={markingPaidId === invoice.id}
-                              className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-60"
+                              className="rounded-full border border-[#dce8df] bg-[#f1f7f1] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#315d48] transition hover:bg-[#e6f0e7] disabled:opacity-60"
                             >
                               {markingPaidId === invoice.id ? 'Sending...' : 'Mark paid'}
                             </button>
@@ -239,15 +239,15 @@ export default function InvoicesPage() {
                     </div>
                     <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${
                       isOverdue
-                        ? 'bg-red-100 text-red-700'
+                        ? 'bg-[#fbefed] text-[#a9483e]'
                         : status === 'paid'
-                          ? 'bg-emerald-100 text-emerald-700'
+                          ? 'bg-[#eaf3ed] text-[#176b52]'
                           : status === 'partial'
-                            ? 'bg-amber-100 text-amber-700'
-                            : 'bg-slate-100 text-slate-700'
+                            ? 'bg-[#f7f1e7] text-[#98743c]'
+                            : 'bg-[#f0f3ef] text-[#68756f]'
                     }`}>{status}</span>
                   </div>
-                  <div className="mt-3 grid grid-cols-2 gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3 text-sm">
+                  <div className="mt-3 grid grid-cols-2 gap-3 rounded-xl border border-[#e8ede7] bg-[#fbfcfa] p-3 text-sm">
                     <div>
                       <div className="text-[11px] uppercase tracking-wide text-slate-500">Total</div>
                       <div className="mt-1 font-semibold text-slate-900">{formatNaira(invoice.total)}</div>
@@ -264,7 +264,7 @@ export default function InvoicesPage() {
                         type="button"
                         onClick={() => markInvoiceAsPaid(invoice.id, balance)}
                         disabled={markingPaidId === invoice.id}
-                        className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-emerald-700 disabled:opacity-60"
+                        className="rounded-lg border border-[#dce8df] bg-[#f1f7f1] px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-[#315d48] disabled:opacity-60"
                       >
                         {markingPaidId === invoice.id ? 'Sending...' : 'Mark paid'}
                       </button>

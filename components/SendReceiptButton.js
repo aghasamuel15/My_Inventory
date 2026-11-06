@@ -16,8 +16,8 @@ export default function SendReceiptButton({ paymentId }) {
         body: JSON.stringify({ paymentId }),
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Could not send receipt.');
-      setStatus('Receipt sent.');
+      if (!response.ok || !result.ok) throw new Error(result.error || 'Could not send receipt.');
+      setStatus(result.alreadySent ? 'Receipt was already sent.' : 'Receipt sent.');
     } catch (error) {
       setStatus(error.message || 'Could not send receipt.');
     } finally {

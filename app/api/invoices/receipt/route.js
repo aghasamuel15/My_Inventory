@@ -39,12 +39,12 @@ export async function POST(request) {
       .maybeSingle();
     if (profileError) throw new Error(`Could not load business profile: ${profileError.message}`);
 
-    const { sent } = await sendInvoicePaymentReceipt(admin, {
+    const { sent, alreadySent } = await sendInvoicePaymentReceipt(admin, {
       ...payment.invoice,
       profile,
       balanceRemaining: getInvoiceBalance(payment.invoice),
     }, payment);
-    return NextResponse.json({ ok: sent });
+    return NextResponse.json({ ok: sent, alreadySent });
   } catch (error) {
     return NextResponse.json({ error: error.message || 'Could not send payment receipt.' }, { status: 500 });
   }

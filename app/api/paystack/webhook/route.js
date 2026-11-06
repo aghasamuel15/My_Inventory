@@ -136,6 +136,10 @@ export async function POST(request) {
       }, payment);
     } catch (receiptError) {
       console.error(`Payment ${payment.id} was recorded but the receipt email failed:`, receiptError.message);
+      return NextResponse.json(
+        { error: 'Payment was recorded, but the receipt email could not be delivered. Paystack may retry this webhook.' },
+        { status: 500 }
+      );
     }
     return NextResponse.json({ ok: true });
   } catch (error) {
