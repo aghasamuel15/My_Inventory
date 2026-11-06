@@ -1,4 +1,5 @@
 import BusinessProfileForm from '../../../components/BusinessProfileForm';
+import BusinessTeamManager from '../../../components/BusinessTeamManager';
 
 export default function SettingsPage() {
   return (
@@ -6,6 +7,7 @@ export default function SettingsPage() {
       <h1 className="mb-2 text-2xl font-bold text-slate-900">Business profile</h1>
       <p className="mb-6 text-sm text-slate-600">Your business name and logo appear on invoice PDFs and customer emails.</p>
       <BusinessProfileForm />
+      <BusinessTeamManager />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Papa from 'papaparse';
 import { createClient } from '../../../lib/supabaseClient';
 import { getInvoiceBalance } from '../../../lib/invoiceBalance';
+import { getBusinessContext } from '../../../lib/businessContext';
 
 const formatNaira = (value) => `₦${Number(value || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 const periodOptions = [
@@ -73,6 +74,7 @@ export default function ReportsPage() {
       setLoading(false);
       return;
     }
+    const { business_id: businessId } = await getBusinessContext(supabase, user.id);
 
     const forecastStart = new Date();
     forecastStart.setDate(forecastStart.getDate() - 30);
@@ -82,17 +84,17 @@ export default function ReportsPage() {
     const forecastEndDate = toDateString(forecastEnd);
     const todayDate = toDateString(new Date());
 
-    let salesQuery = supabase.from('sales').select('sale_date, amount, cost_amount, customer_id, product_id, product_name, quantity, description').eq('user_id', user.id).gte('sale_date', effectiveStartDate).lte('sale_date', effectiveEndDate).order('sale_date');
+    let salesQuery = supabase.from('sales').select('sale_date, amount, cost_amount, customer_id, product_id, product_name, quantity, description').eq('user_id', businessId).gte('sale_date', effectiveStartDate).lte('sale_date', effectiveEndDate).order('sale_date');
     if (selectedCustomerId !== 'all') {
       salesQuery = salesQuery.eq('customer_id', selectedCustomerId);
     }
 
     const [salesRes, expensesRes, customersRes, forecastExpensesRes, invoicesRes] = await Promise.all([
       salesQuery,
-      supabase.from('expenses').select('expense_date, category, description, amount').eq('user_id', user.id).gte('expense_date', effectiveStartDate).lte('expense_date', effectiveEndDate),
-      supabase.from('customers').select('id, name').eq('user_id', user.id).order('name'),
-      supabase.from('expenses').select('expense_date, amount').eq('user_id', user.id).gte('expense_date', forecastStartDate).lte('expense_date', todayDate),
-      supabase.from('invoices').select('total, due_date, status, document_type, payments:invoice_payments(amount)').eq('user_id', user.id).eq('document_type', 'invoice').neq('status', 'draft'),
+      supabase.from('expenses').select('expense_date, category, description, amount').eq('user_id', businessId).gte('expense_date', effectiveStartDate).lte('expense_date', effectiveEndDate),
+      supabase.from('customers').select('id, name').eq('user_id', businessId).order('name'),
+      supabase.from('expenses').select('expense_date, amount').eq('user_id', businessId).gte('expense_date', forecastStartDate).lte('expense_date', todayDate),
+      supabase.from('invoices').select('total, due_date, status, document_type, payments:invoice_payments(amount)').eq('user_id', businessId).eq('document_type', 'invoice').neq('status', 'draft'),
     ]);
 
     const failedQuery = salesRes.error || expensesRes.error || customersRes.error || forecastExpensesRes.error || invoicesRes.error;

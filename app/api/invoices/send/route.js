@@ -7,6 +7,7 @@ import {
   invoiceEmailFrom,
 } from '../../../../lib/invoiceEmail';
 import { getInvoiceBalance, getInvoicePaidTotal } from '../../../../lib/invoiceBalance';
+import { canWriteBusinessData, getBusinessContext } from '../../../../lib/businessContext';
 import { createServerSupabaseClient } from '../../../../lib/supabaseServer';
 
 function formatMoney(value) {
@@ -54,12 +55,16 @@ export async function POST(request) {
     if (!user) {
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
+    const { business_id: businessId, role } = await getBusinessContext(supabase, user.id);
+    if (!canWriteBusinessData(role)) {
+      return NextResponse.json({ ok: false, error: 'Your role cannot send invoices.' }, { status: 403 });
+    }
 
     const { data: invoice, error: invoiceError } = await supabase
       .from('invoices')
       .select('*, customer:customers(name, email, phone), items:invoice_items(*), payments:invoice_payments(amount)')
       .eq('id', invoiceId)
-      .eq('user_id', user.id)
+      .eq('user_id', businessId)
       .single();
 
     if (invoiceError || !invoice) {
@@ -72,7 +77,7 @@ export async function POST(request) {
     const { data: profile } = await supabase
       .from('profiles')
       .select('business_name, business_logo_url')
-      .eq('id', user.id)
+      .eq('id', businessId)
       .maybeSingle();
 
     const { doc, filename } = await createInvoicePdf(invoice, profile);
@@ -151,7 +156,7 @@ export async function POST(request) {
     let historyError = null;
     const { error: logError } = await supabase.from('invoice_email_logs').insert({
       invoice_id: invoice.id,
-      user_id: user.id,
+      user_id: businessId,
       email_type: 'invoice',
       recipient: customerEmail || 'No customer email',
       status: emailResults.ok ? 'sent' : 'failed',

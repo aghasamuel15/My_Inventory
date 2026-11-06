@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '../../../lib/supabaseClient';
 import { estimateRunway, estimateStockRunout } from '../../../lib/cashRunway.mjs';
 import { getInvoiceBalance } from '../../../lib/invoiceBalance';
+import { getBusinessContext } from '../../../lib/businessContext';
 
 const formatNaira = (value) => `₦${Number(value || 0).toLocaleString('en-NG', { maximumFractionDigits: 0 })}`;
 const formatDate = (value) => value.toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -44,6 +45,7 @@ export default function CashRunwayPage() {
         setLoading(false);
         return;
       }
+      const { business_id: businessId } = await getBusinessContext(supabase, user.id);
 
       const today = new Date();
       const todayKey = dateKey(today);
@@ -51,11 +53,11 @@ export default function CashRunwayPage() {
       historyStart.setDate(historyStart.getDate() - 60);
       const historyStartKey = dateKey(historyStart);
       const [reconciliationsResult, openingsResult, invoicesResult, productsResult, recurringResult] = await Promise.all([
-        supabase.from('cashbook_reconciliations').select('account, end_date, actual_closing_balance, reconciled_at').eq('user_id', user.id).lte('end_date', todayKey).order('end_date', { ascending: false }).order('reconciled_at', { ascending: false }),
-        supabase.from('cashbook_account_openings').select('account, initial_balance, created_at').eq('user_id', user.id),
-        supabase.from('invoices').select('id, customer_id, invoice_number, total, due_date, status, document_type, customer:customers(name, phone), payments:invoice_payments(amount)').eq('user_id', user.id),
-        supabase.from('inventory_products').select('id, name, quantity, low_stock_threshold, cost_price').eq('user_id', user.id).eq('is_active', true),
-        supabase.from('recurring_invoice_templates').select('id, frequency, next_issue_date, items, tax').eq('user_id', user.id).eq('active', true),
+        supabase.from('cashbook_reconciliations').select('account, end_date, actual_closing_balance, reconciled_at').eq('user_id', businessId).lte('end_date', todayKey).order('end_date', { ascending: false }).order('reconciled_at', { ascending: false }),
+        supabase.from('cashbook_account_openings').select('account, initial_balance, created_at').eq('user_id', businessId),
+        supabase.from('invoices').select('id, customer_id, invoice_number, total, due_date, status, document_type, customer:customers(name, phone), payments:invoice_payments(amount)').eq('user_id', businessId),
+        supabase.from('inventory_products').select('id, name, quantity, low_stock_threshold, cost_price').eq('user_id', businessId).eq('is_active', true),
+        supabase.from('recurring_invoice_templates').select('id, frequency, next_issue_date, items, tax').eq('user_id', businessId).eq('active', true),
       ]);
       const initialError = [reconciliationsResult, openingsResult, invoicesResult, productsResult, recurringResult].find((result) => result.error)?.error;
       if (initialError) {
@@ -85,10 +87,10 @@ export default function CashRunwayPage() {
         historyStartKey
       );
       const [salesResult, expensesResult, paymentsResult, adjustmentsResult] = await Promise.all([
-        supabase.from('sales').select('sale_date, amount, product_id, quantity, payment_account').eq('user_id', user.id).gte('sale_date', queryStart).lte('sale_date', todayKey),
-        supabase.from('expenses').select('expense_date, amount, payment_account').eq('user_id', user.id).gte('expense_date', queryStart).lte('expense_date', todayKey),
-        supabase.from('invoice_payments').select('payment_date, amount, cashbook_account').eq('user_id', user.id).gte('payment_date', queryStart).lte('payment_date', todayKey),
-        supabase.from('cashbook_adjustments').select('transaction_date, amount, direction, account').eq('user_id', user.id).gte('transaction_date', queryStart).lte('transaction_date', todayKey),
+        supabase.from('sales').select('sale_date, amount, product_id, quantity, payment_account').eq('user_id', businessId).gte('sale_date', queryStart).lte('sale_date', todayKey),
+        supabase.from('expenses').select('expense_date, amount, payment_account').eq('user_id', businessId).gte('expense_date', queryStart).lte('expense_date', todayKey),
+        supabase.from('invoice_payments').select('payment_date, amount, cashbook_account').eq('user_id', businessId).gte('payment_date', queryStart).lte('payment_date', todayKey),
+        supabase.from('cashbook_adjustments').select('transaction_date, amount, direction, account').eq('user_id', businessId).gte('transaction_date', queryStart).lte('transaction_date', todayKey),
       ]);
       const activityError = [salesResult, expensesResult, paymentsResult, adjustmentsResult].find((result) => result.error)?.error;
       if (activityError) {

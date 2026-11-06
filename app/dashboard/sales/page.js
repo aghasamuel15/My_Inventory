@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '../../../lib/supabaseClient';
+import { canWriteBusinessData, getBusinessContext } from '../../../lib/businessContext';
 import OfflineSyncStatus from '../../../components/OfflineSyncStatus';
 import { enqueueOfflineEntry } from '../../../lib/offlineQueue';
 
@@ -14,6 +15,7 @@ export default function SalesPage() {
   const [customers, setCustomers] = useState([]);
   const [products, setProducts] = useState([]);
   const [userId, setUserId] = useState('');
+  const [businessRole, setBusinessRole] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
@@ -34,12 +36,15 @@ export default function SalesPage() {
       setLoading(false);
       return;
     }
-    setUserId(user.id);
+    const context = await getBusinessContext(supabase, user.id);
+    const { business_id: businessId } = context;
+    setUserId(businessId);
+    setBusinessRole(context.role);
 
     const [{ data: salesData }, { data: customerData }, { data: productData }] = await Promise.all([
-      supabase.from('sales').select('*').eq('user_id', user.id).order('sale_date', { ascending: false }).limit(100),
-      supabase.from('customers').select('id, name').eq('user_id', user.id).order('name'),
-      supabase.from('inventory_products').select('id, name, selling_price, quantity, unit').eq('user_id', user.id).eq('is_active', true).order('name'),
+      supabase.from('sales').select('*').eq('user_id', businessId).order('sale_date', { ascending: false }).limit(100),
+      supabase.from('customers').select('id, name').eq('user_id', businessId).order('name'),
+      supabase.from('inventory_products').select('id, name, selling_price, quantity, unit').eq('user_id', businessId).eq('is_active', true).order('name'),
     ]);
 
     setSales(salesData || []);
@@ -96,7 +101,7 @@ export default function SalesPage() {
     if (error) {
       if (!navigator.onLine || !error.status || /fetch|network|offline/i.test(error.message || '')) {
         try {
-          enqueueOfflineEntry(user.id, { id: saleId, type: 'sale', payload, createdAt: new Date().toISOString() });
+          enqueueOfflineEntry(userId, { id: saleId, type: 'sale', payload, createdAt: new Date().toISOString() });
         } catch (queueError) {
           alert(queueError.message || 'Could not save this sale on your device.');
           return;
@@ -117,7 +122,7 @@ export default function SalesPage() {
       <h1 className="mb-6 text-2xl font-bold text-slate-900">Sales</h1>
       <OfflineSyncStatus userId={userId} supabase={supabase} />
 
-      <form onSubmit={handleSubmit} className="card mb-8 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+      {canWriteBusinessData(businessRole) && <form onSubmit={handleSubmit} className="card mb-8 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         <div>
           <label className="label">Product</label>
           <select className="input" required value={form.product_id} onChange={(event) => setForm({ ...form, product_id: event.target.value })}>
@@ -163,7 +168,7 @@ export default function SalesPage() {
           <span className="pb-3 text-sm font-semibold text-slate-600">Sale total: <span className="text-emerald-700">{formatNaira(saleTotal)}</span></span>
           {!products.length && <span className="pb-3 text-sm text-amber-700">Add products in Inventory before recording sales.</span>}
         </div>
-      </form>
+      </form>}
 
       {loading ? (
         <div>Loading sales...</div>

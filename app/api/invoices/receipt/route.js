@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from '../../../../lib/supabaseServer';
 import { createSupabaseAdminClient } from '../../../../lib/supabaseAdmin';
 import { getInvoiceBalance } from '../../../../lib/invoiceBalance';
 import { sendInvoicePaymentReceipt } from '../../../../lib/invoiceReceipt';
+import { canWriteBusinessData, getBusinessContext } from '../../../../lib/businessContext';
 
 export const runtime = 'nodejs';
 
@@ -14,23 +15,27 @@ export async function POST(request) {
     const sessionClient = createServerSupabaseClient();
     const { data: { user }, error: authError } = await sessionClient.auth.getUser();
     if (authError || !user) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
+    const { business_id: businessId, role } = await getBusinessContext(sessionClient, user.id);
+    if (!canWriteBusinessData(role)) {
+      return NextResponse.json({ error: 'Your role cannot send payment receipts.' }, { status: 403 });
+    }
 
     const admin = createSupabaseAdminClient();
     const { data: payment, error: paymentError } = await admin
       .from('invoice_payments')
       .select('id, invoice_id, user_id, amount, payment_date, method, reference, invoice:invoices(id, user_id, invoice_number, total, customer:customers(name, email), payments:invoice_payments(amount))')
       .eq('id', paymentId)
-      .eq('user_id', user.id)
+      .eq('user_id', businessId)
       .maybeSingle();
     if (paymentError) throw new Error(`Could not load payment: ${paymentError.message}`);
-    if (!payment?.invoice || payment.invoice.user_id !== user.id) {
+    if (!payment?.invoice || payment.invoice.user_id !== businessId) {
       return NextResponse.json({ error: 'Payment not found.' }, { status: 404 });
     }
 
     const { data: profile, error: profileError } = await admin
       .from('profiles')
       .select('business_name')
-      .eq('id', user.id)
+      .eq('id', businessId)
       .maybeSingle();
     if (profileError) throw new Error(`Could not load business profile: ${profileError.message}`);
 

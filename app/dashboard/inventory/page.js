@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Papa from 'papaparse';
 import { createClient } from '../../../lib/supabaseClient';
+import { canManageBusiness, canWriteBusinessData, getBusinessContext } from '../../../lib/businessContext';
 
 const formatNaira = (value) => `₦${Number(value || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 
@@ -62,6 +63,7 @@ export default function InventoryPage() {
   const [adjustment, setAdjustment] = useState({ product_id: '', action: 'add', quantity: '', reason: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [businessRole, setBusinessRole] = useState('');
 
   async function load() {
     setLoading(true);
@@ -70,14 +72,17 @@ export default function InventoryPage() {
       setLoading(false);
       return;
     }
+    const context = await getBusinessContext(supabase, user.id);
+    const { business_id: businessId } = context;
+    setBusinessRole(context.role);
 
     const date30DaysAgo = new Date();
     date30DaysAgo.setDate(date30DaysAgo.getDate() - 30);
     const salesStartDate = date30DaysAgo.toLocaleDateString('en-CA');
     const [{ data: productData }, { data: movementData }, { data: salesData }] = await Promise.all([
-      supabase.from('inventory_products').select('*').eq('user_id', user.id).eq('is_active', true).order('name'),
-      supabase.from('inventory_movements').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(40),
-      supabase.from('sales').select('product_id, quantity').eq('user_id', user.id).gte('sale_date', salesStartDate),
+      supabase.from('inventory_products').select('*').eq('user_id', businessId).eq('is_active', true).order('name'),
+      supabase.from('inventory_movements').select('*').eq('user_id', businessId).order('created_at', { ascending: false }).limit(40),
+      supabase.from('sales').select('product_id, quantity').eq('user_id', businessId).gte('sale_date', salesStartDate),
     ]);
     setProducts(productData || []);
     setMovements(movementData || []);
@@ -101,9 +106,10 @@ export default function InventoryPage() {
       alert('Your session has expired. Please sign in again before adding inventory.');
       return;
     }
+    const { business_id: businessId } = await getBusinessContext(supabase, user.id);
 
     const { data: product, error } = await supabase.from('inventory_products').insert({
-      user_id: user.id,
+      user_id: businessId,
       name: form.name.trim(),
       sku: form.sku.trim() || null,
       unit: form.unit.trim() || 'unit',
@@ -242,7 +248,7 @@ export default function InventoryPage() {
         </div>
       )}
 
-      <form onSubmit={handleCreate} className="card mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {canWriteBusinessData(businessRole) && <form onSubmit={handleCreate} className="card mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <h2 className="text-lg font-bold text-slate-900 sm:col-span-2 xl:col-span-4">Add product</h2>
         <div><label className="label">Product name</label><input className="input" required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></div>
         <div><label className="label">SKU / code</label><input className="input" value={form.sku} onChange={(event) => setForm({ ...form, sku: event.target.value })} /></div>
@@ -252,9 +258,9 @@ export default function InventoryPage() {
         <div><label className="label">Selling price per unit</label><input className="input" type="number" min="0" step="0.01" required value={form.selling_price} onChange={(event) => setForm({ ...form, selling_price: event.target.value })} /></div>
         <div><label className="label">Low-stock alert at</label><input className="input" type="number" min="0" step="0.01" required value={form.low_stock_threshold} onChange={(event) => setForm({ ...form, low_stock_threshold: event.target.value })} /></div>
         <div className="flex items-end"><button type="submit" disabled={saving} className="btn-primary w-full">{saving ? 'Saving...' : 'Add product'}</button></div>
-      </form>
+      </form>}
 
-      <form id="stock-adjustment-form" onSubmit={handleAdjustment} className="card mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      {canWriteBusinessData(businessRole) && <form id="stock-adjustment-form" onSubmit={handleAdjustment} className="card mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <h2 className="text-lg font-bold text-slate-900 sm:col-span-2 xl:col-span-5">Add or remove stock</h2>
         <div>
           <label className="label">Product</label>
@@ -272,7 +278,7 @@ export default function InventoryPage() {
         <div><label className="label">Quantity</label><input className="input" type="number" min="0.01" step="0.01" required value={adjustment.quantity} onChange={(event) => setAdjustment({ ...adjustment, quantity: event.target.value })} /></div>
         <div><label className="label">Reason</label><input className="input" placeholder="Restock, damaged, correction" value={adjustment.reason} onChange={(event) => setAdjustment({ ...adjustment, reason: event.target.value })} /></div>
         <div className="flex items-end"><button type="submit" disabled={saving || !products.length} className="btn-secondary w-full">{saving ? 'Saving...' : 'Update stock'}</button></div>
-      </form>
+      </form>}
 
       {loading ? <div>Loading inventory...</div> : (
         <>
@@ -290,8 +296,8 @@ export default function InventoryPage() {
                       <td className="text-right">{formatNaira(product.cost_price)}</td>
                       <td className="text-right">{formatNaira(product.selling_price)}</td>
                       <td className="text-right text-emerald-700">{formatNaira(Number(product.selling_price) - Number(product.cost_price))}</td>
-                      <td>{suggestedRestock(product) > 0 ? <button type="button" onClick={() => useRestockSuggestion(product)} className="font-semibold text-amber-800 hover:underline">{suggestedRestock(product)} {product.unit} · Use</button> : '—'}</td>
-                      <td className="text-right"><button type="button" disabled={Number(product.quantity) > 0} title={Number(product.quantity) > 0 ? 'Remove remaining stock before archiving' : 'Archive product'} onClick={() => handleArchive(product)} className="text-xs font-semibold text-slate-500 enabled:hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40">Archive</button></td>
+                      <td>{canWriteBusinessData(businessRole) && suggestedRestock(product) > 0 ? <button type="button" onClick={() => useRestockSuggestion(product)} className="font-semibold text-amber-800 hover:underline">{suggestedRestock(product)} {product.unit} · Use</button> : '—'}</td>
+                      <td className="text-right">{canManageBusiness(businessRole) && <button type="button" disabled={Number(product.quantity) > 0} title={Number(product.quantity) > 0 ? 'Remove remaining stock before archiving' : 'Archive product'} onClick={() => handleArchive(product)} className="text-xs font-semibold text-slate-500 enabled:hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40">Archive</button>}</td>
                     </tr>
                   );
                 })}
@@ -332,15 +338,15 @@ export default function InventoryPage() {
                       <div className="mt-0.5 font-semibold text-emerald-700">{formatNaira(Number(product.selling_price) - Number(product.cost_price))}</div>
                     </div>
                   </div>
-                  {suggestedRestock(product) > 0 && (
+                  {canWriteBusinessData(businessRole) && suggestedRestock(product) > 0 && (
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-amber-50 px-3 py-2">
                       <p className="text-xs font-medium text-amber-900">Suggested restock: {suggestedRestock(product)} {product.unit}</p>
                       <button type="button" onClick={() => useRestockSuggestion(product)} className="rounded-lg bg-white px-3 py-2 text-xs font-semibold text-amber-900 shadow-sm">Use suggestion</button>
                     </div>
                   )}
-                  <div className="mt-3 border-t border-slate-100 pt-3 text-right">
+                  {canManageBusiness(businessRole) && <div className="mt-3 border-t border-slate-100 pt-3 text-right">
                     <button type="button" disabled={Number(product.quantity) > 0} title={Number(product.quantity) > 0 ? 'Remove remaining stock before archiving' : 'Archive product'} onClick={() => handleArchive(product)} className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-500 enabled:hover:bg-red-50 enabled:hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40">Archive product</button>
-                  </div>
+                  </div>}
                 </article>
               );
             })}

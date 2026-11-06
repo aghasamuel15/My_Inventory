@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getInvoiceBalance } from '../../../lib/invoiceBalance';
 import { createClient } from '../../../lib/supabaseClient';
+import { canManageBusiness, canWriteBusinessData, getBusinessContext } from '../../../lib/businessContext';
 
 const formatNaira = (value) => `₦${Number(value || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 
@@ -10,6 +11,7 @@ export default function CustomersPage() {
   const supabase = createClient();
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [businessRole, setBusinessRole] = useState('');
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [form, setForm] = useState({ name: '', phone: '', email: '', address: '' });
@@ -22,17 +24,20 @@ export default function CustomersPage() {
       setLoading(false);
       return;
     }
+    const context = await getBusinessContext(supabase, user.id);
+    const { business_id: businessId } = context;
+    setBusinessRole(context.role);
 
     const { data: customersData, error: customerError } = await supabase
       .from('customers')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', businessId)
       .order('name');
 
     const { data: invoicesData, error: invoiceError } = await supabase
       .from('invoices')
       .select('customer_id, total, status, document_type, payments:invoice_payments(amount)')
-      .eq('user_id', user.id);
+      .eq('user_id', businessId);
 
     if (customerError || invoiceError) {
       setLoadError(customerError?.message || invoiceError?.message || 'Could not load customer balances.');
@@ -59,9 +64,15 @@ export default function CustomersPage() {
     event.preventDefault();
     setSaving(true);
     const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setSaving(false);
+      alert('Your session has expired. Please sign in again.');
+      return;
+    }
+    const { business_id: businessId } = await getBusinessContext(supabase, user.id);
 
     const { error } = await supabase.from('customers').insert({
-      user_id: user.id,
+      user_id: businessId,
       ...form,
     });
 
@@ -89,7 +100,7 @@ export default function CustomersPage() {
     <div>
       <h1 className="mb-6 text-2xl font-bold text-slate-900">Customers</h1>
 
-      <form onSubmit={handleSubmit} className="card mb-8 grid gap-4 md:grid-cols-5">
+      {canWriteBusinessData(businessRole) && <form onSubmit={handleSubmit} className="card mb-8 grid gap-4 md:grid-cols-5">
         <div>
           <label className="label">Name</label>
           <input className="input" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
@@ -111,7 +122,7 @@ export default function CustomersPage() {
             {saving ? 'Saving...' : 'Add customer'}
           </button>
         </div>
-      </form>
+      </form>}
 
       {loadError && <p role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{loadError}</p>}
       {loading ? (
@@ -147,9 +158,9 @@ export default function CustomersPage() {
                       <a href={`/dashboard/customers/${customer.id}/statement`} className="mr-3 text-xs font-semibold text-brand-700 hover:underline">
                         Statement
                       </a>
-                      <button onClick={() => handleDelete(customer.id)} className="text-xs font-semibold text-red-600">
+                      {canManageBusiness(businessRole) && <button onClick={() => handleDelete(customer.id)} className="text-xs font-semibold text-red-600">
                         Delete
-                      </button>
+                      </button>}
                     </td>
                   </tr>
                 ))}
@@ -182,7 +193,7 @@ export default function CustomersPage() {
                 {customer.address && <p className="mt-2 break-words text-xs text-slate-500">{customer.address}</p>}
                 <div className="mt-3 flex gap-2 border-t border-slate-100 pt-3">
                   <a href={`/dashboard/customers/${customer.id}/statement`} className="btn-secondary flex-1 text-center text-sm">Statement</a>
-                  <button onClick={() => handleDelete(customer.id)} className="rounded-xl border border-red-100 px-4 py-2 text-sm font-semibold text-red-600">Delete</button>
+                  {canManageBusiness(businessRole) && <button onClick={() => handleDelete(customer.id)} className="rounded-xl border border-red-100 px-4 py-2 text-sm font-semibold text-red-600">Delete</button>}
                 </div>
               </article>
             ))}

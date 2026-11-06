@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '../../lib/supabaseClient';
+import { getBusinessContext } from '../../lib/businessContext';
 import StatCard from '../../components/StatCard';
 import { getInvoiceBalance } from '../../lib/invoiceBalance';
 
@@ -35,13 +36,14 @@ export default function DashboardPage() {
         return;
       }
 
+      const { business_id: businessId } = await getBusinessContext(supabase, user.id);
       const { data: profile } = await supabase
-        .from('profiles')
-        .select('business_name')
-        .eq('id', user.id)
+        .from('businesses')
+        .select('name')
+        .eq('id', businessId)
         .maybeSingle();
 
-      setBusinessName(profile?.business_name?.trim() || 'My Business');
+      setBusinessName(profile?.name?.trim() || 'My Business');
 
       const today = new Date();
       const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
@@ -56,13 +58,13 @@ export default function DashboardPage() {
       const forecastEndDate = thirtyDaysAhead.toISOString().slice(0, 10);
 
       const results = await Promise.all([
-        supabase.from('sales').select('amount').eq('user_id', user.id).gte('sale_date', startOfDay),
-        supabase.from('expenses').select('amount').eq('user_id', user.id).gte('expense_date', startOfDay),
-        supabase.from('sales').select('amount').eq('user_id', user.id).gte('sale_date', weekStart.toISOString()),
-        supabase.from('expenses').select('amount').eq('user_id', user.id).gte('expense_date', weekStart.toISOString()),
-        supabase.from('invoices').select('total, due_date, status, document_type, payments:invoice_payments(amount)').eq('user_id', user.id),
-        supabase.from('expenses').select('amount').eq('user_id', user.id).gte('expense_date', thirtyDaysAgo.toISOString().slice(0, 10)).lte('expense_date', todayDate),
-        supabase.from('inventory_products').select('quantity, low_stock_threshold').eq('user_id', user.id).eq('is_active', true),
+        supabase.from('sales').select('amount').eq('user_id', businessId).gte('sale_date', startOfDay),
+        supabase.from('expenses').select('amount').eq('user_id', businessId).gte('expense_date', startOfDay),
+        supabase.from('sales').select('amount').eq('user_id', businessId).gte('sale_date', weekStart.toISOString()),
+        supabase.from('expenses').select('amount').eq('user_id', businessId).gte('expense_date', weekStart.toISOString()),
+        supabase.from('invoices').select('total, due_date, status, document_type, payments:invoice_payments(amount)').eq('user_id', businessId),
+        supabase.from('expenses').select('amount').eq('user_id', businessId).gte('expense_date', thirtyDaysAgo.toISOString().slice(0, 10)).lte('expense_date', todayDate),
+        supabase.from('inventory_products').select('quantity, low_stock_threshold').eq('user_id', businessId).eq('is_active', true),
       ]);
       const queryError = results.find((result) => result.error)?.error;
       if (queryError) {

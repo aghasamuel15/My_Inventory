@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '../../../lib/supabaseClient';
 import OfflineSyncStatus from '../../../components/OfflineSyncStatus';
 import { enqueueOfflineEntry } from '../../../lib/offlineQueue';
+import { canWriteBusinessData, getBusinessContext } from '../../../lib/businessContext';
 
 const formatNaira = (value) => `₦${Number(value || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 
@@ -13,6 +14,7 @@ export default function ExpensesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [userId, setUserId] = useState('');
+  const [businessRole, setBusinessRole] = useState('');
   const [receiptFile, setReceiptFile] = useState(null);
   const [formMessage, setFormMessage] = useState('');
   const [formError, setFormError] = useState('');
@@ -31,12 +33,22 @@ export default function ExpensesPage() {
       setLoading(false);
       return;
     }
-    setUserId(user.id);
+    let businessId;
+    try {
+      const context = await getBusinessContext(supabase, user.id);
+      businessId = context.business_id;
+      setBusinessRole(context.role);
+    } catch (contextError) {
+      setFormError(contextError.message);
+      setLoading(false);
+      return;
+    }
+    setUserId(businessId);
 
     const { data, error } = await supabase
       .from('expenses')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', businessId)
       .order('expense_date', { ascending: false })
       .limit(100);
 
@@ -111,13 +123,21 @@ export default function ExpensesPage() {
       alert('Your session has expired. Please sign in again before adding an expense.');
       return;
     }
+    let businessId;
+    try {
+      ({ business_id: businessId } = await getBusinessContext(supabase, user.id));
+    } catch (contextError) {
+      setSaving(false);
+      setFormError(contextError.message);
+      return;
+    }
 
     const { error } = await supabase.from('expenses').insert(payload);
 
     if (error && (!navigator.onLine || !error.status || /fetch|network|offline/i.test(error.message || ''))) {
       setSaving(false);
       try {
-        enqueueOfflineEntry(user.id, { id: expenseId, type: 'expense', payload: { ...payload, user_id: user.id }, createdAt: new Date().toISOString() });
+        enqueueOfflineEntry(businessId, { id: expenseId, type: 'expense', payload: { ...payload, user_id: businessId }, createdAt: new Date().toISOString() });
       } catch (queueError) {
         setFormError(queueError.message || 'Could not save this expense on your device.');
         return;
@@ -135,7 +155,7 @@ export default function ExpensesPage() {
 
     if (receiptFile) {
       const safeName = receiptFile.name.replace(/[^a-zA-Z0-9._-]/g, '-');
-      const receiptPath = `${user.id}/${expenseId}/${safeName}`;
+      const receiptPath = `${businessId}/${expenseId}/${safeName}`;
       const { error: uploadError } = await supabase.storage
         .from('expense-receipts')
         .upload(receiptPath, receiptFile, { contentType: receiptFile.type, upsert: false });
@@ -152,7 +172,7 @@ export default function ExpensesPage() {
         .from('expenses')
         .update({ receipt_path: receiptPath })
         .eq('id', expenseId)
-        .eq('user_id', user.id);
+        .eq('user_id', businessId);
       if (linkError) {
         const { error: cleanupError } = await supabase.storage.from('expense-receipts').remove([receiptPath]);
         setFormError(`Expense saved, but its receipt could not be linked: ${linkError.message}${cleanupError ? ` Receipt cleanup also failed: ${cleanupError.message}` : ''}`);
@@ -184,7 +204,7 @@ export default function ExpensesPage() {
       <h1 className="mb-6 text-2xl font-bold text-slate-900">Expenses</h1>
       <OfflineSyncStatus userId={userId} supabase={supabase} />
 
-      <form onSubmit={handleSubmit} className="card mb-8 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+      {canWriteBusinessData(businessRole) && <form onSubmit={handleSubmit} className="card mb-8 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         <div>
           <label className="label">Amount</label>
           <input className="input" type="number" min="0.01" step="0.01" required value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
@@ -220,7 +240,7 @@ export default function ExpensesPage() {
         </div>
         {formError && <p role="alert" className="md:col-span-6 text-sm text-red-700">{formError}</p>}
         {formMessage && <p role="status" className="md:col-span-6 text-sm text-emerald-700">{formMessage}</p>}
-      </form>
+      </form>}
 
       {loading ? (
         <div>Loading expenses...</div>

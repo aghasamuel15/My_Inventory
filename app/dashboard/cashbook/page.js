@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Papa from 'papaparse';
 import { createClient } from '../../../lib/supabaseClient';
+import { canWriteBusinessData, getBusinessContext } from '../../../lib/businessContext';
+import BankStatementImport from '../../../components/BankStatementImport';
 
 const formatNaira = (value) => `₦${Number(value || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 
@@ -35,6 +37,8 @@ function getMonthStart() {
 export default function CashbookPage() {
   const supabase = useMemo(() => createClient(), []);
   const [account, setAccount] = useState('cash');
+  const [userId, setUserId] = useState('');
+  const [businessRole, setBusinessRole] = useState('');
   const [startDate, setStartDate] = useState(getMonthStart);
   const [endDate, setEndDate] = useState(toDateString(new Date()));
   const [initialOpeningBalance, setInitialOpeningBalance] = useState('');
@@ -67,6 +71,8 @@ export default function CashbookPage() {
     }
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
+      setUserId('');
+      setBusinessRole('');
       setTotals(null);
       setHistory([]);
       setUnassignedTransactions([]);
@@ -74,16 +80,27 @@ export default function CashbookPage() {
       setLoading(false);
       return;
     }
+    let businessId;
+    try {
+      const context = await getBusinessContext(supabase, user.id);
+      businessId = context.business_id;
+      setUserId(user.id);
+      setBusinessRole(context.role);
+    } catch (contextError) {
+      setErrorMessage(contextError.message);
+      setLoading(false);
+      return;
+    }
 
     const [cashTotalsResult, bankTotalsResult, historyResult, salesResult, expensesResult, invoicePaymentsResult, adjustmentsResult, currentResult] = await Promise.all([
       supabase.rpc('get_cashbook_period_totals', { p_start_date: startDate, p_end_date: endDate, p_account: 'cash' }),
       supabase.rpc('get_cashbook_period_totals', { p_start_date: startDate, p_end_date: endDate, p_account: 'bank' }),
-      supabase.from('cashbook_reconciliations').select('*').eq('user_id', user.id).eq('account', account).order('reconciled_at', { ascending: false }).limit(10),
-      supabase.from('sales').select('id, sale_date, product_name, description, amount, payment_account').eq('user_id', user.id).in('payment_account', [account, 'unassigned']).gte('sale_date', startDate).lte('sale_date', endDate).order('sale_date', { ascending: false }).limit(500),
-      supabase.from('expenses').select('id, expense_date, category, description, amount, payment_account').eq('user_id', user.id).in('payment_account', [account, 'unassigned']).gte('expense_date', startDate).lte('expense_date', endDate).order('expense_date', { ascending: false }).limit(500),
-      supabase.from('invoice_payments').select('id, payment_date, amount, reference, notes, method, cashbook_account, invoice:invoices(invoice_number)').eq('user_id', user.id).in('cashbook_account', [account, 'unassigned']).gte('payment_date', startDate).lte('payment_date', endDate).order('payment_date', { ascending: false }).limit(500),
-      supabase.from('cashbook_adjustments').select('*').eq('user_id', user.id).eq('account', account).gte('transaction_date', startDate).lte('transaction_date', endDate).order('transaction_date', { ascending: false }).limit(500),
-      supabase.from('cashbook_reconciliations').select('*').eq('user_id', user.id).eq('account', account).eq('start_date', startDate).eq('end_date', endDate).order('reconciled_at', { ascending: false }).limit(1).maybeSingle(),
+      supabase.from('cashbook_reconciliations').select('*').eq('user_id', businessId).eq('account', account).order('reconciled_at', { ascending: false }).limit(10),
+      supabase.from('sales').select('id, sale_date, product_name, description, amount, payment_account').eq('user_id', businessId).in('payment_account', [account, 'unassigned']).gte('sale_date', startDate).lte('sale_date', endDate).order('sale_date', { ascending: false }).limit(500),
+      supabase.from('expenses').select('id, expense_date, category, description, amount, payment_account').eq('user_id', businessId).in('payment_account', [account, 'unassigned']).gte('expense_date', startDate).lte('expense_date', endDate).order('expense_date', { ascending: false }).limit(500),
+      supabase.from('invoice_payments').select('id, payment_date, amount, reference, notes, method, cashbook_account, invoice:invoices(invoice_number)').eq('user_id', businessId).in('cashbook_account', [account, 'unassigned']).gte('payment_date', startDate).lte('payment_date', endDate).order('payment_date', { ascending: false }).limit(500),
+      supabase.from('cashbook_adjustments').select('*').eq('user_id', businessId).eq('account', account).gte('transaction_date', startDate).lte('transaction_date', endDate).order('transaction_date', { ascending: false }).limit(500),
+      supabase.from('cashbook_reconciliations').select('*').eq('user_id', businessId).eq('account', account).eq('start_date', startDate).eq('end_date', endDate).order('reconciled_at', { ascending: false }).limit(1).maybeSingle(),
     ]);
 
     const failed = cashTotalsResult.error || bankTotalsResult.error || historyResult.error || salesResult.error || expensesResult.error || invoicePaymentsResult.error || adjustmentsResult.error || currentResult.error;
@@ -187,10 +204,19 @@ export default function CashbookPage() {
     setLoading(false);
   }
 
+  const loadRef = useRef(load);
+  loadRef.current = load;
+
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [account, startDate, endDate]);
+
+  useEffect(() => {
+    const refreshCashbook = () => loadRef.current({ resetReconciliation: false });
+    window.addEventListener('cashbook-transactions-changed', refreshCashbook);
+    return () => window.removeEventListener('cashbook-transactions-changed', refreshCashbook);
+  }, []);
 
   const openingBalance = totals?.opening_balance == null
     ? Number(initialOpeningBalance || 0)
@@ -209,6 +235,7 @@ export default function CashbookPage() {
     const version = autoSaveVersion.current;
     window.clearTimeout(autoSaveTimer.current);
     if (
+      !canWriteBusinessData(businessRole) ||
       loading ||
       !totals ||
       !hasValidDates ||
@@ -286,6 +313,7 @@ export default function CashbookPage() {
     openingBalance,
     startDate,
     supabase,
+    businessRole,
     totals,
   ]);
 
@@ -303,9 +331,17 @@ export default function CashbookPage() {
       setErrorMessage(authError?.message || 'Your session has expired. Please sign in again.');
       return;
     }
+    let businessId;
+    try {
+      ({ business_id: businessId } = await getBusinessContext(supabase, user.id));
+    } catch (contextError) {
+      setErrorMessage(contextError.message);
+      setSaving(false);
+      return;
+    }
 
     const { error } = await supabase.from('cashbook_adjustments').insert({
-      user_id: user.id,
+      user_id: businessId,
       account,
       direction: adjustmentForm.direction,
       amount,
@@ -571,6 +607,13 @@ export default function CashbookPage() {
 
       {errorMessage && <p role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errorMessage}</p>}
       {statusMessage && <p role="status" className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{statusMessage}</p>}
+      {userId && (
+        <BankStatementImport
+          supabase={supabase}
+          userId={userId}
+          canWrite={canWriteBusinessData(businessRole)}
+        />
+      )}
 
       {loading ? <p className="text-sm text-slate-500">Loading cashbook...</p> : totals && (
         <>
@@ -629,7 +672,7 @@ export default function CashbookPage() {
                           <select
                             className="min-h-10 rounded-lg border border-slate-200 bg-white px-2 text-sm"
                             value=""
-                            disabled={assigningId === transactionKey}
+                            disabled={!canWriteBusinessData(businessRole) || assigningId === transactionKey}
                             onChange={(event) => assignAccount(transaction, event.target.value)}
                           >
                             <option value="" disabled>Select</option>
@@ -657,7 +700,7 @@ export default function CashbookPage() {
               {totals.opening_balance == null ? (
                 <div>
                   <label className="label" htmlFor="cashbook-opening">Initial opening balance (enter once)</label>
-                  <input id="cashbook-opening" className="input" type="number" step="0.01" value={initialOpeningBalance} onChange={(event) => setInitialOpeningBalance(event.target.value)} />
+                  <input id="cashbook-opening" className="input" type="number" step="0.01" value={initialOpeningBalance} onChange={(event) => setInitialOpeningBalance(event.target.value)} disabled={!canWriteBusinessData(businessRole)} />
                 </div>
               ) : (
                 <div className="rounded-xl bg-slate-50 p-3">
@@ -681,11 +724,11 @@ export default function CashbookPage() {
               </div>
               <div>
                 <label className="label" htmlFor="cashbook-actual">Actual closing balance</label>
-                <input id="cashbook-actual" className="input" type="number" step="0.01" value={actualClosingBalance} onChange={(event) => setActualClosingBalance(event.target.value)} placeholder="Counted cash / statement" />
+                <input id="cashbook-actual" className="input" type="number" step="0.01" value={actualClosingBalance} onChange={(event) => setActualClosingBalance(event.target.value)} placeholder="Counted cash / statement" disabled={!canWriteBusinessData(businessRole)} />
               </div>
               <div className="sm:col-span-2">
                 <label className="label" htmlFor="cashbook-notes">Review notes (optional)</label>
-                <input id="cashbook-notes" className="input" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Notes about this reconciliation" />
+                <input id="cashbook-notes" className="input" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Notes about this reconciliation" disabled={!canWriteBusinessData(businessRole)} />
               </div>
               <div className="flex flex-col justify-center rounded-xl bg-slate-50 p-3">
                 <p className="text-xs text-slate-500">Difference</p>
@@ -709,7 +752,7 @@ export default function CashbookPage() {
                         ? 'Enter the actual closing balance; reconciliation saves automatically.'
                         : 'Changes save automatically.')}
               </p>
-              {!Number(totals.unassigned_count) && hasOpeningBalance && actualClosingBalance !== '' && Math.abs(variance) >= 0.005 && (
+              {canWriteBusinessData(businessRole) && !Number(totals.unassigned_count) && hasOpeningBalance && actualClosingBalance !== '' && Math.abs(variance) >= 0.005 && (
                 <button
                   type="button"
                   className="btn-secondary"
@@ -738,7 +781,7 @@ export default function CashbookPage() {
                 </span>
               )}
             </div>
-            <form onSubmit={addAdjustment} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {canWriteBusinessData(businessRole) && <form onSubmit={addAdjustment} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <div>
                 <label className="label" htmlFor="adjustment-direction">Item type</label>
                 <select id="adjustment-direction" className="input" value={adjustmentForm.direction} onChange={(event) => setAdjustmentForm({ ...adjustmentForm, direction: event.target.value })}>
@@ -761,7 +804,7 @@ export default function CashbookPage() {
               <div className="sm:col-span-2 xl:col-span-4">
                 <button type="submit" className="btn-primary">Add item to {account}</button>
               </div>
-            </form>
+            </form>}
           </section>
 
           <section className="card mb-8">

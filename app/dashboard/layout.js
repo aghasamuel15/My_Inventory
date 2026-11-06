@@ -13,17 +13,26 @@ export default async function DashboardLayout({ children }) {
     redirect('/login');
   }
 
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('business_name')
-    .eq('id', user.id)
+  const { data: membership, error: membershipError } = await supabase
+    .from('business_memberships')
+    .select('business_id')
+    .eq('user_id', user.id)
+    .eq('status', 'active')
     .maybeSingle();
 
-  if (profileError) {
-    console.error('Could not load business profile:', profileError.message);
+  const { data: business, error: businessError } = membership?.business_id
+    ? await supabase
+      .from('businesses')
+      .select('name')
+      .eq('id', membership.business_id)
+      .maybeSingle()
+    : { data: null, error: null };
+
+  if (membershipError || businessError) {
+    console.error('Could not load business name:', membershipError?.message || businessError?.message);
   }
 
-  const businessName = profile?.business_name?.trim() || 'My Business';
+  const businessName = business?.name?.trim() || 'My Business';
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 md:flex-row">

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import PrintStatementButton from '../../../../../components/PrintStatementButton';
 import { getInvoiceBalance, getInvoicePaidTotal } from '../../../../../lib/invoiceBalance';
+import { getBusinessContext } from '../../../../../lib/businessContext';
 import { createServerSupabaseClient } from '../../../../../lib/supabaseServer';
 
 function formatNaira(value) {
@@ -12,12 +13,13 @@ export default async function CustomerStatementPage({ params }) {
   const supabase = createServerSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) notFound();
+  const { business_id: businessId } = await getBusinessContext(supabase, user.id);
 
   const { data: customer, error: customerError } = await supabase
     .from('customers')
     .select('id, name, email, phone, address')
     .eq('id', params.id)
-    .eq('user_id', user.id)
+    .eq('user_id', businessId)
     .maybeSingle();
   if (customerError) throw new Error(`Could not load customer: ${customerError.message}`);
   if (!customer) notFound();
@@ -26,7 +28,7 @@ export default async function CustomerStatementPage({ params }) {
     .from('invoices')
     .select('id, invoice_number, issue_date, due_date, total, status, document_type, payments:invoice_payments(amount, payment_date, method, reference)')
     .eq('customer_id', customer.id)
-    .eq('user_id', user.id)
+    .eq('user_id', businessId)
     .eq('document_type', 'invoice')
     .neq('status', 'draft')
     .order('issue_date', { ascending: false });

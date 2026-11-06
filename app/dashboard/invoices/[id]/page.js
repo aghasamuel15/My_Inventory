@@ -9,6 +9,8 @@ import IssueInvoiceButton from '../../../../components/IssueInvoiceButton';
 import SendReceiptButton from '../../../../components/SendReceiptButton';
 import { createInvoiceLinkToken } from '../../../../lib/invoiceLink';
 import { getInvoiceBalance, getInvoicePaidTotal } from '../../../../lib/invoiceBalance';
+import { getBusinessContext } from '../../../../lib/businessContext';
+import { canWriteBusinessData } from '../../../../lib/businessContext';
 import { createServerSupabaseClient } from '../../../../lib/supabaseServer';
 
 function formatNaira(value) {
@@ -24,19 +26,21 @@ export default async function InvoiceDetailPage({ params }) {
   if (!user) {
     notFound();
   }
+  const { business_id: businessId, role } = await getBusinessContext(supabase, user.id);
+  const canWrite = canWriteBusinessData(role);
 
   const { data: invoice, error } = await supabase
     .from('invoices')
     .select('*, customer:customers(name, phone, email), items:invoice_items(*), payments:invoice_payments(*), email_logs:invoice_email_logs(*)')
     .eq('id', params.id)
-    .eq('user_id', user.id)
+    .eq('user_id', businessId)
     .single();
 
   if (error || !invoice) {
     notFound();
   }
 
-  const { data: profile } = await supabase.from('profiles').select('business_name, business_logo_url').eq('id', user.id).maybeSingle();
+  const { data: profile } = await supabase.from('profiles').select('business_name, business_logo_url').eq('id', businessId).maybeSingle();
 
   const invoiceNumber = invoice.invoice_number || invoice.id;
   const paidTotal = getInvoicePaidTotal(invoice);
@@ -53,11 +57,11 @@ export default async function InvoiceDetailPage({ params }) {
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-4 flex flex-wrap justify-start gap-3 print:hidden sm:justify-end">
-        {(!isQuote && invoice.status === 'draft') ? (
+        {canWrite && ((!isQuote && invoice.status === 'draft') ? (
           <IssueInvoiceButton invoiceId={invoice.id} />
         ) : (
           <SendInvoiceButton invoiceId={invoice.id} isQuote={isQuote} />
-        )}
+        ))}
         <PrintButton invoice={invoice} profile={profile} />
         {!isQuote && invoice.status !== 'draft' && balance > 0 && (
           <InvoiceShareLinks
@@ -67,7 +71,7 @@ export default async function InvoiceDetailPage({ params }) {
             phone={invoice.customer?.phone}
           />
         )}
-        {isQuote && <ConvertQuoteButton invoiceId={invoice.id} />}
+        {canWrite && isQuote && <ConvertQuoteButton invoiceId={invoice.id} />}
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-8" id="invoice-print">
@@ -188,7 +192,13 @@ export default async function InvoiceDetailPage({ params }) {
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <section className="card">
           <h2 className="mb-4 text-lg font-bold text-slate-900">{isQuote ? 'Quote actions' : 'Record a payment'}</h2>
-          {isQuote ? <p className="text-sm text-slate-500">Convert this quote to an invoice when the customer approves it.</p> : invoice.status === 'draft' ? <p className="text-sm text-slate-500">Review this recurring invoice draft, then issue it before sending or recording payments.</p> : <InvoicePaymentForm invoiceId={invoice.id} balance={balance} />}
+          {!canWrite
+            ? <p className="text-sm text-slate-500">This account has read-only access.</p>
+            : isQuote
+              ? <p className="text-sm text-slate-500">Convert this quote to an invoice when the customer approves it.</p>
+              : invoice.status === 'draft'
+                ? <p className="text-sm text-slate-500">Review this recurring invoice draft, then issue it before sending or recording payments.</p>
+                : <InvoicePaymentForm invoiceId={invoice.id} balance={balance} />}
         </section>
         <section className="card">
           <h2 className="mb-4 text-lg font-bold text-slate-900">Payment history</h2>
@@ -207,7 +217,7 @@ export default async function InvoiceDetailPage({ params }) {
                       {payment.reference ? ` · ${payment.reference}` : ''}
                     </div>
                     {payment.notes && <div className="mt-1 text-xs text-slate-500">{payment.notes}</div>}
-                    <SendReceiptButton paymentId={payment.id} />
+                    {canWrite && <SendReceiptButton paymentId={payment.id} />}
                   </div>
                 </div>
               ))}
@@ -222,7 +232,7 @@ export default async function InvoiceDetailPage({ params }) {
           {invoice.recurring_template_id ? (
             <p className="text-sm text-slate-600">This invoice was created from a recurring schedule.</p>
           ) : (
-            <MakeRecurringInvoiceForm invoice={invoice} />
+            canWrite ? <MakeRecurringInvoiceForm invoice={invoice} /> : null
           )}
         </section>
       )}

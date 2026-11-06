@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '../lib/supabaseClient';
 
-export default function RecurringTemplatesList({ templates }) {
+export default function RecurringTemplatesList({ templates, canWrite = true }) {
   const supabase = createClient();
   const router = useRouter();
   const [error, setError] = useState('');
@@ -47,12 +47,12 @@ export default function RecurringTemplatesList({ templates }) {
                 <div className="text-sm text-slate-500">Next draft: {template.next_issue_date} · {template.items?.length || 0} item(s)</div>
                 <div className={`mt-1 text-xs font-semibold uppercase ${template.active ? 'text-emerald-700' : 'text-slate-500'}`}>{template.active ? 'Active' : 'Paused'}</div>
               </div>
-              <div className="flex gap-3">
+              {canWrite && <div className="flex gap-3">
                 <button type="button" disabled={savingId === template.id} onClick={() => updateTemplate(template, !template.active)} className="text-sm font-semibold text-brand-700 disabled:opacity-60">
                   {template.active ? 'Pause' : 'Resume'}
                 </button>
                 <button type="button" disabled={savingId === template.id} onClick={() => deleteTemplate(template)} className="text-sm font-semibold text-red-700 disabled:opacity-60">Delete</button>
-              </div>
+              </div>}
             </div>
           ))}
         </div>

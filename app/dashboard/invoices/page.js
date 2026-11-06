@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import InvoiceCreateForm from '../../../components/InvoiceCreateForm';
 import { getInvoiceBalance, getInvoicePaidTotal } from '../../../lib/invoiceBalance';
 import { createClient } from '../../../lib/supabaseClient';
+import { canWriteBusinessData, getBusinessContext } from '../../../lib/businessContext';
 
 const formatNaira = (value) => `₦${Number(value || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 
@@ -13,6 +14,7 @@ export default function InvoicesPage() {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [businessRole, setBusinessRole] = useState('');
 
   async function load() {
     setLoading(true);
@@ -23,15 +25,18 @@ export default function InvoicesPage() {
       setLoading(false);
       return;
     }
+    const context = await getBusinessContext(supabase, user.id);
+    const { business_id: businessId } = context;
+    setBusinessRole(context.role);
 
     const [invoiceResult, customerResult] = await Promise.all([
       supabase
         .from('invoices')
         .select('*, customer:customers(name), payments:invoice_payments(amount)')
-        .eq('user_id', user.id)
+        .eq('user_id', businessId)
         .order('created_at', { ascending: false })
         .limit(100),
-      supabase.from('customers').select('id, name').eq('user_id', user.id).order('name'),
+      supabase.from('customers').select('id, name').eq('user_id', businessId).order('name'),
     ]);
 
     if (invoiceResult.error || customerResult.error) {
@@ -75,8 +80,10 @@ export default function InvoicesPage() {
         </div>
       </div>
 
-      <h2 className="mb-3 text-lg font-semibold text-slate-900">Create an invoice</h2>
-      <InvoiceCreateForm customers={customers} />
+      {canWriteBusinessData(businessRole) && <>
+        <h2 className="mb-3 text-lg font-semibold text-slate-900">Create an invoice</h2>
+        <InvoiceCreateForm customers={customers} />
+      </>}
 
       {error && <p role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       {loading ? (
