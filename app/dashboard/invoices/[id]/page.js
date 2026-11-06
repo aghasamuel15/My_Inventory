@@ -74,18 +74,18 @@ export default async function InvoiceDetailPage({ params }) {
         {canWrite && isQuote && <ConvertQuoteButton invoiceId={invoice.id} />}
       </div>
 
-      <div className="overflow-hidden rounded-[30px] border border-indigo-200 bg-white shadow-[0_24px_60px_rgba(79,70,229,0.08)] ring-1 ring-slate-200" id="invoice-print">
-        <div className="bg-gradient-to-r from-slate-900 via-violet-900 to-indigo-700 px-5 py-6 text-white sm:px-8 sm:py-7">
+      <div className="overflow-hidden rounded-[30px] border border-[#d8e3d9] bg-white shadow-[0_24px_60px_rgba(18,57,46,0.09)] ring-1 ring-[#e5ebe4]" id="invoice-print">
+        <div className="bg-gradient-to-r from-[#102e25] via-[#174936] to-[#22634a] px-5 py-6 text-white sm:px-8 sm:py-7">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.3em] text-indigo-200">{isQuote ? 'Quote / estimate' : 'Invoice'}</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#d5c293]">{isQuote ? 'Quote / estimate' : 'Invoice'}</div>
               <div className="mt-3 flex items-center gap-3">
-                {profile?.business_logo_url && <img src={profile.business_logo_url} alt="" className="h-12 w-12 rounded-xl border border-white/30 bg-white/10 object-contain p-1" />}
+                {profile?.business_logo_url && <img src={profile.business_logo_url} alt="" className="h-12 w-12 rounded-xl border border-white/20 bg-white/10 object-contain p-1" />}
                 <h1 className="text-2xl font-black tracking-[-0.05em] text-white sm:text-3xl">{profile?.business_name || 'My Business'}</h1>
               </div>
-              <p className="mt-2 text-sm text-indigo-100">{isQuote ? 'Quote' : 'Invoice'} #{invoiceNumber}</p>
+              <p className="mt-2 text-sm text-white/75">{isQuote ? 'Quote' : 'Invoice'} #{invoiceNumber}</p>
             </div>
-            <span className={`inline-flex items-center rounded-full border border-white/20 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] ${overdue ? 'bg-red-500/25 text-white' : 'bg-white/10 text-white'}`}>
+            <span className={`inline-flex items-center rounded-full border border-white/20 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] ${overdue ? 'bg-[#a9483e]/35 text-white' : invoiceStatus === 'paid' ? 'bg-[#b8d7bb]/15 text-[#d8edda]' : 'bg-white/[0.08] text-white'}`}>
               {invoiceStatus}
             </span>
           </div>
@@ -93,18 +93,18 @@ export default async function InvoiceDetailPage({ params }) {
 
         <div className="space-y-8 p-4 sm:p-8">
           <div className="grid gap-6 sm:grid-cols-2">
-            <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4">
-              <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Billed to</div>
-              <div className="text-base font-semibold text-slate-900">{invoice.customer?.name || 'Customer'}</div>
-              <div className="mt-1 text-sm text-slate-600">{invoice.customer?.phone || '—'}</div>
-              <div className="text-sm text-slate-600">{invoice.customer?.email || '—'}</div>
-              <div className="text-sm text-slate-600">{invoice.customer?.address || '—'}</div>
+            <div className="rounded-[24px] border border-[#e3e9e2] bg-[#fbfcfa] p-4">
+              <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#87938b]">Billed to</div>
+              <div className="text-base font-semibold text-[#20372c]">{invoice.customer?.name || 'Customer'}</div>
+              <div className="mt-1 text-sm text-[#68756f]">{invoice.customer?.phone || '—'}</div>
+              <div className="text-sm text-[#68756f]">{invoice.customer?.email || '—'}</div>
+              <div className="text-sm text-[#68756f]">{invoice.customer?.address || '—'}</div>
             </div>
 
-            <div className="rounded-[24px] border border-emerald-200 bg-emerald-50/80 p-4 sm:text-right">
-              <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Dates</div>
-              <div className="text-sm text-slate-700">Issue date: {invoice.issue_date || '—'}</div>
-              <div className="text-sm text-slate-700">Due date: {invoice.due_date || '—'}</div>
+            <div className="rounded-[24px] border border-[#dce8df] bg-[#f1f7f1] p-4 sm:text-right">
+              <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#718078]">Dates</div>
+              <div className="text-sm text-[#40574b]">Issue date: {invoice.issue_date || '—'}</div>
+              <div className="text-sm text-[#40574b]">Due date: {invoice.due_date || '—'}</div>
             </div>
           </div>
 
@@ -160,7 +160,7 @@ export default async function InvoiceDetailPage({ params }) {
           </div>
 
           <div className="flex justify-end">
-            <div className="w-full max-w-sm rounded-[24px] border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+            <div className="w-full max-w-sm rounded-[24px] border border-[#e3e9e2] bg-gradient-to-br from-[#f7f8f5] via-white to-[#f1f7f1] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
               <div className="space-y-2.5 text-sm text-slate-700">
                 <div className="flex justify-between">
                   <span>Subtotal</span>
