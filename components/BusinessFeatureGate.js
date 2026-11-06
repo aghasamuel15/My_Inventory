@@ -28,7 +28,7 @@ export default function BusinessFeatureGate({ children }) {
   return (
     <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
       <h1 className="text-lg font-semibold text-amber-950">Section not available</h1>
-      <p className="mt-1 text-sm text-amber-900">Your business owner has not enabled this section for your role.</p>
+      <p className="mt-1 text-sm text-amber-900">Your business Admin has not enabled this section for your role.</p>
     </section>
   );
 }

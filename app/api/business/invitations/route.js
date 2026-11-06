@@ -30,7 +30,7 @@ export async function POST(request) {
     const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
     const role = body.role;
     if (!email || !['manager', 'staff', 'viewer'].includes(role)) {
-      return NextResponse.json({ error: 'Enter an email address and choose a valid team role.' }, { status: 400 });
+      return NextResponse.json({ error: 'Enter an email address and choose Manager, Staff, or Viewer. Admin access cannot be granted by invitation.' }, { status: 400 });
     }
 
     const supabase = createServerSupabaseClient();
@@ -41,7 +41,7 @@ export async function POST(request) {
 
     const { business_id: businessId, role: currentRole } = await getBusinessContext(supabase, user.id);
     if (!canManageBusiness(currentRole)) {
-      return NextResponse.json({ error: 'Only business owners and managers can invite teammates.' }, { status: 403 });
+      return NextResponse.json({ error: 'Only the business Admin and managers can invite teammates.' }, { status: 403 });
     }
 
     const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
@@ -87,12 +87,17 @@ export async function POST(request) {
     }
 
     const isPending = invitation.invitation_status === 'pending';
-    const signupUrl = new URL(isPending ? '/signup' : '/login', baseUrl);
+    const invitationUrl = new URL('/invite', baseUrl);
+    invitationUrl.searchParams.set('email', email);
+    invitationUrl.searchParams.set('mode', isPending ? 'signup' : 'login');
+    const signupUrl = new URL('/signup', baseUrl);
     signupUrl.searchParams.set('email', email);
+    const loginUrl = new URL('/login', baseUrl);
+    loginUrl.searchParams.set('email', email);
     const recipientName = escapeHtml(email);
     const businessName = escapeHtml(business.name);
     const roleName = escapeHtml(role[0].toUpperCase() + role.slice(1));
-    const action = isPending ? 'Create your account' : 'Sign in to your account';
+    const action = isPending ? 'View invitation and create account' : 'View invitation and sign in';
     const greeting = isPending
       ? `You have been invited to join ${businessName} on SME Tracker as a ${roleName}.`
       : `You have been added to ${businessName} on SME Tracker as a ${roleName}.`;
@@ -102,8 +107,8 @@ export async function POST(request) {
         from: invoiceEmailFrom(),
         to: email,
         subject: 'Invitation to join a business on SME Tracker',
-        html: `<div style="font-family:Arial,sans-serif;color:#1f2937;line-height:1.6"><h2>You're invited to SME Tracker</h2><p>Hello ${recipientName},</p><p>${greeting}</p><p><a href="${escapeHtml(signupUrl.toString())}" style="display:inline-block;padding:12px 20px;background:#158765;color:#fff;text-decoration:none;border-radius:8px">${action}</a></p><p>If you already have an account, sign in with this email address. New members should create their account using the invited email address so access can be activated.</p><p>If you were not expecting this invitation, you can ignore this email.</p></div>`,
-        text: `Hello ${email},\n\n${isPending ? 'You have been invited to join' : 'You have been added to'} ${business.name} on SME Tracker as a ${role}.\n\n${action}: ${signupUrl}\n\nNew members should create their account using this invited email address.`,
+        html: `<div style="font-family:Arial,sans-serif;color:#1f2937;line-height:1.6"><h2>You're invited to SME Tracker</h2><p>Hello ${recipientName},</p><p>${greeting}</p><p><a href="${escapeHtml(invitationUrl.toString())}" style="display:inline-block;padding:12px 20px;background:#158765;color:#fff;text-decoration:none;border-radius:8px">${action}</a></p><p>If the button does not work, open this link:</p><p><a href="${escapeHtml(invitationUrl.toString())}">${escapeHtml(invitationUrl.toString())}</a></p><p>Use the invited email address to create an account or sign in. You can also use these direct links:</p><p><a href="${escapeHtml(signupUrl.toString())}">Create an account</a> · <a href="${escapeHtml(loginUrl.toString())}">Sign in</a></p><p>If you were not expecting this invitation, you can ignore this email.</p></div>`,
+        text: `Hello ${email},\n\n${greeting}\n\nOpen your invitation: ${invitationUrl}\n\nCreate an account: ${signupUrl}\nSign in: ${loginUrl}\n\nUse the invited email address so the business can match your account to its invitation. If you were not expecting this invitation, you can ignore this email.`,
       });
     } catch (emailError) {
       return NextResponse.json({

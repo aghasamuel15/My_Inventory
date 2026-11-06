@@ -62,7 +62,12 @@ export default function SignupPage() {
 
         {invitationEmail && (
           <p className="mb-4 rounded-xl bg-brand-50 px-3 py-2 text-sm text-brand-800">
-            You’re joining a business on SME Tracker. Create your account with the invited email address to activate access.
+            You’re joining a business on SME Tracker. Create your account with the invited email address to activate the role chosen by the business Admin. Admin access is reserved for the first account that creates a business.
+          </p>
+        )}
+        {!invitationEmail && (
+          <p className="mb-4 rounded-xl bg-brand-50 px-3 py-2 text-sm text-brand-800">
+            The first account created for a business becomes its Admin with full access. Teammates can be invited later as Manager, Staff, or Viewer.
           </p>
         )}
         <form onSubmit={handleSubmit} className="space-y-4">

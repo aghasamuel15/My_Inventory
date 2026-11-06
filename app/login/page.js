@@ -24,7 +24,8 @@ function getSafeNextPath(next) {
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [email, setEmail] = useState('');
+  const invitationEmail = searchParams.get('email')?.trim() || '';
+  const [email, setEmail] = useState(invitationEmail);
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -62,10 +63,15 @@ function LoginForm() {
           <h1 className="mt-3 text-3xl font-bold text-slate-900">Welcome back</h1>
         </div>
 
+        {invitationEmail && (
+          <p className="mb-4 rounded-xl bg-brand-50 px-3 py-2 text-sm text-brand-800">
+            Sign in with the invited email address to access your business.
+          </p>
+        )}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="label">Email</label>
-            <input className="input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input className="input" type="email" required value={email} readOnly={Boolean(invitationEmail)} onChange={(e) => setEmail(e.target.value)} />
           </div>
           <div>
             <label className="label">Password</label>

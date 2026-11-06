@@ -5,7 +5,7 @@ import { createClient } from '../lib/supabaseClient';
 import { canManageBusiness, getBusinessContext } from '../lib/businessContext';
 
 const roleLabels = {
-  owner: 'Owner',
+  owner: 'Admin',
   manager: 'Manager',
   staff: 'Staff',
   viewer: 'Viewer',
@@ -208,7 +208,7 @@ export default function BusinessTeamManager() {
     <section className="card mt-6 max-w-3xl space-y-5">
       <div>
         <h2 className="text-lg font-semibold text-slate-900">Team access</h2>
-        <p className="mt-1 text-sm text-slate-600">Share this business’s data with teammates. The business owner’s subscription covers its members.</p>
+        <p className="mt-1 text-sm text-slate-600">The first account for a business is its Admin and has full access. Admin access cannot be granted by invitation; invite teammates as Manager, Staff, or Viewer. The Admin’s subscription covers the team.</p>
       </div>
       {canManageBusiness(role) && (
         <form onSubmit={inviteMember} className="grid gap-3 sm:grid-cols-[1fr_180px_auto]">
@@ -275,7 +275,7 @@ export default function BusinessTeamManager() {
         <div className="space-y-4 border-t border-slate-100 pt-5">
           <div>
             <h3 className="font-semibold text-slate-900">Feature access by role</h3>
-            <p className="mt-1 text-sm text-slate-600">Choose which sections each role can access. Role permissions still apply: viewers remain read-only, and only managers and owners can manage the team.</p>
+            <p className="mt-1 text-sm text-slate-600">Choose which sections each role can access. Admins always have access to every section. Viewers remain read-only, and only Admins and managers can manage the team.</p>
           </div>
           {['manager', 'staff', 'viewer'].map((targetRole) => (
             <fieldset key={targetRole} className="rounded-xl border border-slate-200 p-4">

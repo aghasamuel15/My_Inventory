@@ -17,6 +17,8 @@ create table if not exists public.business_memberships (
 
 create unique index if not exists business_memberships_email_idx
   on public.business_memberships(business_id, lower(email));
+create unique index if not exists business_memberships_one_owner_per_business_idx
+  on public.business_memberships(business_id) where role = 'owner';
 create index if not exists business_memberships_business_idx
   on public.business_memberships(business_id, status);
 
