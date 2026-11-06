@@ -111,6 +111,17 @@ export async function POST(request) {
     if (profileError) throw new Error(`Payment was recorded but the receipt could not be prepared: ${profileError.message}`);
 
     const overpayment = Math.max(0, getInvoicePaidTotal(latestInvoice) - Number(latestInvoice.total || 0));
+    const receipt = {
+      businessName: profile?.business_name || 'My Business',
+      customerName: latestInvoice.customer?.name || 'Customer',
+      invoiceNumber: latestInvoice.invoice_number || latestInvoice.id,
+      invoiceTotal: Number(latestInvoice.total || 0),
+      paymentAmount: Number(payment.amount || 0),
+      paymentDate: payment.payment_date,
+      paymentReference: payment.reference || payment.id,
+      paidTotal: getInvoicePaidTotal(latestInvoice),
+      balanceRemaining: getInvoiceBalance(latestInvoice),
+    };
     try {
       await sendInvoicePaymentReceipt(supabase, {
         ...latestInvoice,
@@ -121,11 +132,13 @@ export async function POST(request) {
       return NextResponse.json({
         ok: true,
         overpayment,
+        receipt,
+        receiptEmailSent: false,
         receiptError: receiptError.message || 'Payment succeeded, but the receipt email failed.',
       });
     }
 
-    return NextResponse.json({ ok: true, overpayment });
+    return NextResponse.json({ ok: true, overpayment, receipt, receiptEmailSent: true });
   } catch (error) {
     return NextResponse.json({ error: error.message || 'Could not verify invoice payment.' }, { status: 500 });
   }
