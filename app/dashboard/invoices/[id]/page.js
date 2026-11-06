@@ -75,17 +75,17 @@ export default async function InvoiceDetailPage({ params }) {
       </div>
 
       <div className="overflow-hidden rounded-[30px] border border-[#d8e3d9] bg-white shadow-[0_24px_60px_rgba(18,57,46,0.09)] ring-1 ring-[#e5ebe4]" id="invoice-print">
-        <div className="bg-gradient-to-r from-[#102e25] via-[#174936] to-[#22634a] px-5 py-6 text-white sm:px-8 sm:py-7">
+        <div className="border-b border-[#e5e9df] bg-[#f5f5f0] px-5 py-6 text-[#20372c] sm:px-8 sm:py-7">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#d5c293]">{isQuote ? 'Quote / estimate' : 'Invoice'}</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#927b56]">{isQuote ? 'Quote / estimate' : 'Invoice'}</div>
               <div className="mt-3 flex items-center gap-3">
-                {profile?.business_logo_url && <img src={profile.business_logo_url} alt="" className="h-12 w-12 rounded-xl border border-white/20 bg-white/10 object-contain p-1" />}
-                <h1 className="text-2xl font-black tracking-[-0.05em] text-white sm:text-3xl">{profile?.business_name || 'My Business'}</h1>
+                {profile?.business_logo_url && <img src={profile.business_logo_url} alt="" className="h-12 w-12 rounded-xl border border-[#e3e9e2] bg-white object-contain p-1" />}
+                <h1 className="text-2xl font-black tracking-[-0.05em] text-[#20372c] sm:text-3xl">{profile?.business_name || 'My Business'}</h1>
               </div>
-              <p className="mt-2 text-sm text-white/75">{isQuote ? 'Quote' : 'Invoice'} #{invoiceNumber}</p>
+              <p className="mt-2 text-sm text-[#68756f]">{isQuote ? 'Quote' : 'Invoice'} #{invoiceNumber}</p>
             </div>
-            <span className={`inline-flex items-center rounded-full border border-white/20 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] ${overdue ? 'bg-[#a9483e]/35 text-white' : invoiceStatus === 'paid' ? 'bg-[#b8d7bb]/15 text-[#d8edda]' : 'bg-white/[0.08] text-white'}`}>
+            <span className={`inline-flex items-center rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] ${overdue ? 'border-[#efd4d0] bg-[#fcf4f2] text-[#a9483e]' : invoiceStatus === 'paid' ? 'border-[#dce8df] bg-[#eaf3ed] text-[#176b52]' : 'border-[#e1e7df] bg-white/80 text-[#52665a]'}`}>
               {invoiceStatus}
             </span>
           </div>
