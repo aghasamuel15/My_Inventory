@@ -143,8 +143,8 @@ export default function InvoicesPage() {
         </div>
       )}
 
-      {error && <p role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-      {statusMessage && <p role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{statusMessage}</p>}
+      {error && <p role="alert" className="rounded-2xl border border-[#efd4d0] bg-[#fcf4f2] p-3 text-sm text-[#873d35]">{error}</p>}
+      {statusMessage && <p role="status" className="rounded-2xl border border-[#dce8df] bg-[#f1f7f1] p-3 text-sm text-[#315d48]">{statusMessage}</p>}
 
       {loading ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-sm">Loading invoices...</div>
