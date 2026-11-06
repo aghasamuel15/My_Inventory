@@ -19,6 +19,42 @@ function escapeHtml(value) {
   })[character]);
 }
 
+function getInvitationBaseUrl() {
+  const candidates = [
+    process.env.NEXT_PUBLIC_SITE_URL,
+    process.env.VERCEL_PROJECT_PRODUCTION_URL,
+    process.env.VERCEL_URL,
+  ];
+
+  for (const candidate of candidates) {
+    if (!candidate?.trim()) continue;
+
+    let url;
+    try {
+      const value = candidate.trim();
+      url = new URL(value.includes('://') ? value : `https://${value}`);
+    } catch {
+      continue;
+    }
+
+    if (
+      !['http:', 'https:'].includes(url.protocol)
+      || url.username
+      || url.password
+      || /your[-.]vercel[-.]domain|your[-.]domain/i.test(url.hostname)
+      || (process.env.NODE_ENV === 'production' && url.protocol !== 'https:')
+    ) {
+      continue;
+    }
+
+    return new URL(url.origin);
+  }
+
+  throw new Error(
+    'No valid app URL is configured for invitation links. Set NEXT_PUBLIC_SITE_URL to your deployed HTTPS app URL in Vercel, then redeploy.'
+  );
+}
+
 export async function POST(request) {
   try {
     let body;
@@ -44,19 +80,11 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Only the business Admin and managers can invite teammates.' }, { status: 403 });
     }
 
-    const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
-    if (!configuredSiteUrl) {
-      return NextResponse.json({ error: 'Email invitations require NEXT_PUBLIC_SITE_URL to be configured.' }, { status: 503 });
-    }
-
     let baseUrl;
     try {
-      baseUrl = new URL(configuredSiteUrl);
-    } catch {
-      return NextResponse.json({ error: 'NEXT_PUBLIC_SITE_URL must be a valid URL.' }, { status: 503 });
-    }
-    if (baseUrl.protocol !== 'https:' && process.env.NODE_ENV === 'production') {
-      return NextResponse.json({ error: 'Invitation links require an HTTPS NEXT_PUBLIC_SITE_URL.' }, { status: 503 });
+      baseUrl = getInvitationBaseUrl();
+    } catch (urlError) {
+      return NextResponse.json({ error: urlError.message }, { status: 503 });
     }
 
     let transporter;
