@@ -117,34 +117,49 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Overview</p>
-        <h1 className="mt-2 text-2xl font-bold text-slate-900">Welcome back, {businessName}!</h1>
+      <div className="mb-7 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#927b56]">Your business at a glance</p>
+          <h1 className="mt-2 text-[1.7rem] font-semibold tracking-[-0.045em] text-[#20372c] sm:text-[2rem]">Welcome back, {businessName}</h1>
+          <p className="mt-1 text-sm text-[#738078]">A clear view of today’s activity and what’s ahead.</p>
+        </div>
+        <span className="inline-flex items-center gap-2 rounded-full border border-[#e1e7df] bg-white px-3 py-2 text-[11px] font-medium text-[#68756f] shadow-sm">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#4c9870]" />
+          Overview
+        </span>
       </div>
 
       {loading ? (
-        <div className="text-slate-500">Loading overview...</div>
+        <div role="status" className="space-y-5" aria-label="Loading overview">
+          <div className="h-48 animate-pulse rounded-[24px] bg-[#e6ebe4]" />
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {[0, 1, 2, 3, 4].map((item) => <div key={item} className="h-32 animate-pulse rounded-[20px] bg-[#e9ede7]" />)}
+          </div>
+        </div>
       ) : error ? (
-        <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>
+        <p role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</p>
       ) : (
         <>
-          <section className="mb-5 rounded-2xl bg-gradient-to-br from-brand-700 to-emerald-600 p-5 text-white shadow-sm">
+          <section className="relative mb-6 overflow-hidden rounded-[26px] border border-[#234a3c] bg-gradient-to-br from-[#163c30] via-[#12392e] to-[#0d2b22] p-5 text-white shadow-[0_18px_42px_rgba(18,57,46,0.2)] sm:p-7">
+            <div className="pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full border border-white/[0.08]" />
+            <div className="pointer-events-none absolute -right-4 -top-12 h-48 w-48 rounded-full border border-white/[0.08]" />
+            <div className="pointer-events-none absolute bottom-0 right-24 h-28 w-28 rounded-full bg-[#b99256]/[0.08] blur-2xl" />
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium text-white/80">Business health · this week</p>
-                <h2 className="mt-1 text-2xl font-black">{formatNaira(stats.weeklyProfit)}</h2>
-                <p className="mt-1 text-xs text-white/80">Net operating profit</p>
+              <div className="relative">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#d5c293]">Business health · this week</p>
+                <h2 className="mt-3 text-3xl font-semibold tracking-[-0.055em] sm:text-4xl">{formatNaira(stats.weeklyProfit)}</h2>
+                <p className="mt-1.5 text-xs text-white/65">Net operating profit</p>
               </div>
-              <div className="rounded-xl bg-white/15 px-3 py-2 text-right">
-                <p className="text-xs text-white/80">30-day cash outlook</p>
-                <p className="font-bold">{formatNaira(stats.dueNext30Days - stats.projectedExpenses30Days)}</p>
+              <div className="relative min-w-[178px] rounded-2xl border border-white/[0.12] bg-white/[0.07] px-4 py-3 text-right backdrop-blur-sm">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.13em] text-white/60">30-day cash outlook</p>
+                <p className="mt-1 text-lg font-semibold tracking-[-0.035em]">{formatNaira(stats.dueNext30Days - stats.projectedExpenses30Days)}</p>
               </div>
             </div>
-            <div className="mt-5 grid grid-cols-2 gap-3 border-t border-white/20 pt-4 sm:grid-cols-4">
-              <div><p className="text-xs text-white/75">Sales</p><p className="mt-1 text-sm font-semibold">{formatNaira(stats.weeklySales)}</p></div>
-              <div><p className="text-xs text-white/75">Expenses</p><p className="mt-1 text-sm font-semibold">{formatNaira(stats.weeklyExpenses)}</p></div>
-              <div><p className="text-xs text-white/75">Invoice dues · 30d</p><p className="mt-1 text-sm font-semibold">{formatNaira(stats.dueNext30Days)}</p></div>
-              <div><p className="text-xs text-white/75">Low-stock products</p><p className="mt-1 text-sm font-semibold">{stats.lowStockCount}</p></div>
+            <div className="relative mt-6 grid grid-cols-2 gap-x-4 gap-y-4 border-t border-white/[0.14] pt-5 sm:grid-cols-4">
+              <div><p className="text-[10px] font-medium text-white/55">Sales</p><p className="mt-1.5 text-sm font-semibold tracking-[-0.02em]">{formatNaira(stats.weeklySales)}</p></div>
+              <div><p className="text-[10px] font-medium text-white/55">Expenses</p><p className="mt-1.5 text-sm font-semibold tracking-[-0.02em]">{formatNaira(stats.weeklyExpenses)}</p></div>
+              <div><p className="text-[10px] font-medium text-white/55">Invoice dues · 30d</p><p className="mt-1.5 text-sm font-semibold tracking-[-0.02em]">{formatNaira(stats.dueNext30Days)}</p></div>
+              <div><p className="text-[10px] font-medium text-white/55">Low-stock products</p><p className="mt-1.5 text-sm font-semibold tracking-[-0.02em]">{stats.lowStockCount}</p></div>
             </div>
           </section>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
