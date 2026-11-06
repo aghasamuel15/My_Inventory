@@ -101,14 +101,16 @@ stable
 security definer
 set search_path = public, pg_temp
 as $$
-  select not coalesce((
-    select entitlements_enabled from public.business_access_settings where id
-  ), false) or exists (
-    select 1
-    from public.profiles p
-    where p.id = public.current_business_id()
-      and p.subscription_status = 'active'
-  )
+  select public.current_business_role() = 'owner'
+    or not coalesce((
+      select entitlements_enabled from public.business_access_settings where id
+    ), false)
+    or exists (
+      select 1
+      from public.profiles p
+      where p.id = public.current_business_id()
+        and p.subscription_status = 'active'
+    )
 $$;
 
 create or replace function public.set_business_owner_id()
@@ -194,6 +196,7 @@ for delete to authenticated using (
 drop policy if exists "Users can view their own profile" on public.profiles;
 drop policy if exists "Users can insert their own profile" on public.profiles;
 drop policy if exists "Users can update their own profile" on public.profiles;
+drop policy if exists "Business members can view profiles" on public.profiles;
 create policy "Business members can view profiles" on public.profiles
 for select to authenticated using (id = auth.uid() or business_id = public.current_business_id());
 create policy "Users can update their own profile" on public.profiles
@@ -755,6 +758,7 @@ create unique index if not exists bank_statement_match_once_idx
 create index if not exists bank_statement_transactions_date_idx
   on public.bank_statement_transactions(user_id, transaction_date desc);
 alter table public.bank_statement_transactions enable row level security;
+drop policy if exists "Business members can view bank statement transactions" on public.bank_statement_transactions;
 create policy "Business members can view bank statement transactions" on public.bank_statement_transactions
 for select to authenticated using (user_id = public.current_business_id() and public.has_active_access());
 
@@ -783,6 +787,7 @@ revoke all on function public.update_business_profile(text, text) from public, a
 grant execute on function public.update_business_profile(text, text) to authenticated;
 
 drop policy if exists "Users can upload their business logo" on storage.objects;
+drop policy if exists "Business managers can upload business logo" on storage.objects;
 create policy "Business managers can upload business logo" on storage.objects
 for insert to authenticated with check (
   bucket_id = 'business-logos'
@@ -790,6 +795,7 @@ for insert to authenticated with check (
   and public.can_manage_business()
 );
 drop policy if exists "Users can update their business logo" on storage.objects;
+drop policy if exists "Business managers can update business logo" on storage.objects;
 create policy "Business managers can update business logo" on storage.objects
 for update to authenticated using (
   bucket_id = 'business-logos'
@@ -801,6 +807,7 @@ for update to authenticated using (
   and public.can_manage_business()
 );
 drop policy if exists "Users can delete their business logo" on storage.objects;
+drop policy if exists "Business managers can delete business logo" on storage.objects;
 create policy "Business managers can delete business logo" on storage.objects
 for delete to authenticated using (
   bucket_id = 'business-logos'
@@ -809,6 +816,7 @@ for delete to authenticated using (
 );
 
 drop policy if exists "Users can view their expense receipts" on storage.objects;
+drop policy if exists "Business members can view expense receipts" on storage.objects;
 create policy "Business members can view expense receipts" on storage.objects
 for select to authenticated using (
   bucket_id = 'expense-receipts'
@@ -816,6 +824,7 @@ for select to authenticated using (
   and public.has_active_access()
 );
 drop policy if exists "Users can upload their expense receipts" on storage.objects;
+drop policy if exists "Business staff can upload expense receipts" on storage.objects;
 create policy "Business staff can upload expense receipts" on storage.objects
 for insert to authenticated with check (
   bucket_id = 'expense-receipts'
@@ -824,6 +833,7 @@ for insert to authenticated with check (
   and public.has_active_access()
 );
 drop policy if exists "Users can delete their expense receipts" on storage.objects;
+drop policy if exists "Business staff can delete expense receipts" on storage.objects;
 create policy "Business staff can delete expense receipts" on storage.objects
 for delete to authenticated using (
   bucket_id = 'expense-receipts'

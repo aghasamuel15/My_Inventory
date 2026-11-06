@@ -93,7 +93,7 @@ export default function CustomersPage() {
     }
 
     if (error.code === '42501') {
-      setFormError('You do not have permission to add customers. Confirm your role can write, Customers is enabled for your role, and your business access is active. If these settings are correct, run supabase/repair_customer_rls.sql in the Supabase SQL Editor.');
+      setFormError('You do not have permission to add customers. Confirm your role can write and Customers is enabled. Admins can run supabase/repair_admin_access.sql; if the issue continues, run supabase/repair_customer_rls.sql in the Supabase SQL Editor.');
     } else {
       setFormError(`Could not add customer: ${error.message}`);
     }
