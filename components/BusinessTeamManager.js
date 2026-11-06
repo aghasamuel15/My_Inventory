@@ -10,16 +10,27 @@ const roleLabels = {
   staff: 'Staff',
   viewer: 'Viewer',
 };
+const configurableFeatures = [
+  { id: 'sales', label: 'Sales' },
+  { id: 'inventory', label: 'Inventory' },
+  { id: 'expenses', label: 'Expenses' },
+  { id: 'customers', label: 'Customers' },
+  { id: 'invoices', label: 'Invoices and payments' },
+  { id: 'reports', label: 'Reports' },
+];
+const allFeatures = configurableFeatures.map((feature) => feature.id);
 
 export default function BusinessTeamManager() {
   const [supabase] = useState(() => createClient());
   const [userId, setUserId] = useState('');
   const [role, setRole] = useState('');
   const [members, setMembers] = useState([]);
+  const [roleFeatures, setRoleFeatures] = useState({});
   const [email, setEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('staff');
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState('');
+  const [savingRole, setSavingRole] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
@@ -42,6 +53,13 @@ export default function BusinessTeamManager() {
         const context = await getBusinessContext(supabase, user.id);
         setRole(context.role);
         await loadTeam(context.business_id);
+        if (context.role === 'owner') {
+          const { data: permissions, error: permissionsError } = await supabase.rpc('get_business_role_features');
+          if (permissionsError) throw new Error(`Could not load role feature settings: ${permissionsError.message}`);
+          setRoleFeatures(Object.fromEntries(
+            (permissions || []).map((item) => [item.role, item.features || allFeatures])
+          ));
+        }
       } catch (loadError) {
         setError(loadError.message || 'Could not load business team.');
       } finally {
@@ -56,16 +74,24 @@ export default function BusinessTeamManager() {
     setBusyId('invite');
     setError('');
     setMessage('');
-    const { data, error: inviteError } = await supabase.rpc('invite_business_member', {
-      p_email: email,
-      p_role: inviteRole,
-    });
-    if (inviteError) {
-      setError(inviteError.message);
-    } else {
-      setMessage(data?.[0]?.invitation_status === 'pending'
-        ? 'Invitation saved. Ask the person to sign up using this email address; access activates when they create their account.'
-        : 'Team member added.');
+    try {
+      const response = await fetch('/api/business/invitations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, role: inviteRole }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        if (result.invitationCreated) {
+          setMessage('The invitation is saved, but its email was not sent.');
+          setError(`${result.error} You can retry using Resend invitation.`);
+        } else {
+          setError(result.error || 'Could not send the invitation.');
+        }
+      } else {
+        setMessage(result.message || 'Invitation email sent.');
+        setError('');
+      }
       setEmail('');
       try {
         const { business_id: businessId } = await getBusinessContext(supabase, userId);
@@ -73,8 +99,60 @@ export default function BusinessTeamManager() {
       } catch (loadError) {
         setError(loadError.message);
       }
+    } catch (inviteError) {
+      setError(inviteError.message || 'Could not send the invitation.');
+    } finally {
+      setBusyId('');
     }
-    setBusyId('');
+  }
+
+  async function resendInvitation(member) {
+    setBusyId(member.id);
+    setError('');
+    setMessage('');
+    try {
+      const response = await fetch('/api/business/invitations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: member.email, role: member.role }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Could not resend the invitation.');
+      setMessage(result.message || `Invitation email sent to ${member.email}.`);
+    } catch (resendError) {
+      setError(resendError.message || 'Could not resend the invitation.');
+    } finally {
+      setBusyId('');
+    }
+  }
+
+  async function saveRoleFeatures(targetRole) {
+    setSavingRole(targetRole);
+    setError('');
+    setMessage('');
+    const { error: saveError } = await supabase.rpc('set_business_role_features', {
+      p_role: targetRole,
+      p_features: roleFeatures[targetRole] || [],
+    });
+    if (saveError) {
+      setError(`Could not save ${roleLabels[targetRole]} access: ${saveError.message}`);
+    } else {
+      setMessage(`${roleLabels[targetRole]} feature access saved.`);
+    }
+    setSavingRole('');
+  }
+
+  function toggleRoleFeature(targetRole, featureId) {
+    setRoleFeatures((current) => {
+      const currentFeatures = current[targetRole] || [];
+      return {
+        ...current,
+        [targetRole]: currentFeatures.includes(featureId)
+          ? currentFeatures.filter((feature) => feature !== featureId)
+          : [...currentFeatures, featureId],
+      };
+    });
+    setMessage('');
   }
 
   async function changeRole(member, nextRole) {
@@ -133,7 +211,7 @@ export default function BusinessTeamManager() {
             </select>
           </label>
           <button type="submit" className="btn-primary self-end" disabled={busyId === 'invite'}>
-            {busyId === 'invite' ? 'Adding...' : 'Add teammate'}
+            {busyId === 'invite' ? 'Sending...' : 'Send invitation'}
           </button>
         </form>
       )}
@@ -147,6 +225,16 @@ export default function BusinessTeamManager() {
               </div>
               {canManageBusiness(role) && member.role !== 'owner' && (
                 <div className="flex items-center gap-3">
+                  {member.status === 'pending' && (
+                    <button
+                      type="button"
+                      className="text-sm font-semibold text-brand-700 disabled:opacity-50"
+                      onClick={() => resendInvitation(member)}
+                      disabled={busyId === member.id}
+                    >
+                      {busyId === member.id ? 'Sending...' : 'Resend invitation'}
+                    </button>
+                  )}
                   <label className="sr-only" htmlFor={`member-role-${member.id}`}>Role for {member.email}</label>
                   <select
                     id={`member-role-${member.id}`}
@@ -169,6 +257,40 @@ export default function BusinessTeamManager() {
         </ul>
       ) : <p className="text-sm text-slate-500">No team members yet.</p>}
       {!canManageBusiness(role) && <p className="text-xs text-slate-500">Only owners and managers can change team access.</p>}
+      {role === 'owner' && (
+        <div className="space-y-4 border-t border-slate-100 pt-5">
+          <div>
+            <h3 className="font-semibold text-slate-900">Feature access by role</h3>
+            <p className="mt-1 text-sm text-slate-600">Choose which sections each role can access. Role permissions still apply: viewers remain read-only, and only managers and owners can manage the team.</p>
+          </div>
+          {['manager', 'staff', 'viewer'].map((targetRole) => (
+            <fieldset key={targetRole} className="rounded-xl border border-slate-200 p-4">
+              <legend className="px-1 text-sm font-semibold text-slate-800">{roleLabels[targetRole]}</legend>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {configurableFeatures.map((feature) => (
+                  <label key={feature.id} className="flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={(roleFeatures[targetRole] || []).includes(feature.id)}
+                      onChange={() => toggleRoleFeature(targetRole, feature.id)}
+                      disabled={savingRole === targetRole}
+                    />
+                    {feature.label}
+                  </label>
+                ))}
+              </div>
+              <button
+                type="button"
+                className="btn-secondary mt-4 text-sm"
+                onClick={() => saveRoleFeatures(targetRole)}
+                disabled={savingRole === targetRole}
+              >
+                {savingRole === targetRole ? 'Saving...' : `Save ${roleLabels[targetRole]} access`}
+              </button>
+            </fieldset>
+          ))}
+        </div>
+      )}
       {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
       {message && <p role="status" className="text-sm text-emerald-700">{message}</p>}
     </section>

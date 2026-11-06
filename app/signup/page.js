@@ -1,15 +1,21 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createClient } from '../../lib/supabaseClient';
 
 export default function SignupPage() {
-  const router = useRouter();
   const [form, setForm] = useState({ business_name: '', email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [invitationEmail, setInvitationEmail] = useState('');
+
+  useEffect(() => {
+    const invitedEmail = new URLSearchParams(window.location.search).get('email')?.trim() || '';
+    if (!invitedEmail) return;
+    setInvitationEmail(invitedEmail);
+    setForm((current) => ({ ...current, email: invitedEmail }));
+  }, []);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -22,9 +28,7 @@ export default function SignupPage() {
         email: form.email,
         password: form.password,
         options: {
-          data: {
-            business_name: form.business_name,
-          },
+          data: { business_name: form.business_name },
         },
       });
 
@@ -36,14 +40,12 @@ export default function SignupPage() {
 
       if (data?.user) {
         setLoading(false);
-        setMessage('Account created. Check your email to confirm your account, then sign in.');
-        router.push('/login');
+        setMessage('Account created. Check your email to confirm your account, then sign in using the invited email address.');
         return;
       }
 
       setLoading(false);
       setMessage('Account created. Please sign in.');
-      router.push('/login');
     } catch (error) {
       setLoading(false);
       setMessage(error.message || 'Supabase configuration is invalid. Check your env vars and restart the app.');
@@ -58,14 +60,21 @@ export default function SignupPage() {
           <h1 className="mt-3 text-3xl font-bold text-slate-900">Create your account</h1>
         </div>
 
+        {invitationEmail && (
+          <p className="mb-4 rounded-xl bg-brand-50 px-3 py-2 text-sm text-brand-800">
+            You’re joining a business on SME Tracker. Create your account with the invited email address to activate access.
+          </p>
+        )}
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="label">Business name</label>
-            <input className="input" required value={form.business_name} onChange={(e) => setForm({ ...form, business_name: e.target.value })} />
-          </div>
+          {!invitationEmail && (
+            <div>
+              <label className="label">Business name</label>
+              <input className="input" required value={form.business_name} onChange={(e) => setForm({ ...form, business_name: e.target.value })} />
+            </div>
+          )}
           <div>
             <label className="label">Email</label>
-            <input className="input" type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            <input className="input" type="email" required value={form.email} readOnly={Boolean(invitationEmail)} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           </div>
           <div>
             <label className="label">Password</label>

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '../lib/supabaseClient';
 import dashboardNavigation from '../lib/dashboardNavigation';
+import useBusinessFeatures from '../lib/useBusinessFeatures';
 
 const NavIcon = ({ children, className = '' }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={`h-4 w-4 ${className}`} aria-hidden="true">
@@ -15,6 +16,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const features = useBusinessFeatures();
   const mobileLinks = [
     { href: '/dashboard', label: 'Home', icon: <NavIcon><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V20h14V9.5" /></NavIcon> },
     { href: '/dashboard/sales', label: 'Sales', icon: <NavIcon><path d="M4 18V8.5A1.5 1.5 0 0 1 5.5 7H18a2 2 0 0 1 2 2v9" /><path d="M4 15h16" /><path d="M7 12h3" /><path d="M7 7V5.5A1.5 1.5 0 0 1 8.5 4h7A1.5 1.5 0 0 1 17 5.5V7" /></NavIcon> },
@@ -37,7 +39,7 @@ export default function Sidebar() {
           <span className="text-xl font-black text-brand-700">SME Tracker</span>
         </div>
         <nav id="dashboard-navigation" className="hidden space-y-1 md:block md:py-4">
-          {dashboardNavigation.map((link) => (
+          {dashboardNavigation.filter((link) => !link.feature || features === null || features === undefined || features.includes(link.feature)).map((link) => (
             <Link
               key={link.href}
               href={link.href}
@@ -58,7 +60,12 @@ export default function Sidebar() {
         </nav>
       </aside>
       <nav aria-label="Quick navigation" className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-5 border-t border-slate-200 bg-white/95 px-2 pt-2 shadow-[0_-4px_16px_rgba(15,23,42,0.06)] backdrop-blur md:hidden print:hidden" style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}>
-        {mobileLinks.map((link) => (
+        {mobileLinks.filter((link) => {
+          const feature = link.href === '/dashboard/sales' ? 'sales'
+            : link.href === '/dashboard/inventory' ? 'inventory'
+              : link.href === '/dashboard/invoices' ? 'invoices' : null;
+          return !feature || features === null || features === undefined || features.includes(feature);
+        }).map((link) => (
           <Link
             key={link.href}
             href={link.href}

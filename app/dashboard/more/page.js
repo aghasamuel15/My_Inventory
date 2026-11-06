@@ -4,9 +4,11 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '../../../lib/supabaseClient';
 import dashboardNavigation from '../../../lib/dashboardNavigation';
+import useBusinessFeatures from '../../../lib/useBusinessFeatures';
 
 export default function MorePage() {
   const router = useRouter();
+  const features = useBusinessFeatures();
 
   async function handleLogout() {
     const supabase = createClient();
@@ -28,7 +30,10 @@ export default function MorePage() {
       </div>
 
       <nav aria-label="All features" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {dashboardNavigation.filter((item) => item.href !== '/dashboard').map((item) => (
+        {dashboardNavigation.filter((item) => (
+          item.href !== '/dashboard'
+          && (!item.feature || features === null || features === undefined || features.includes(item.feature))
+        )).map((item) => (
           <Link
             key={item.href}
             href={item.href}

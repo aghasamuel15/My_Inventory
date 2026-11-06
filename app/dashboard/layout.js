@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import Sidebar from '../../components/Sidebar';
+import BusinessFeatureGate from '../../components/BusinessFeatureGate';
 import { createServerSupabaseClient } from '../../lib/supabaseServer';
 
 export default async function DashboardLayout({ children }) {
@@ -43,7 +44,9 @@ export default async function DashboardLayout({ children }) {
             <span className="text-lg font-semibold text-slate-800">{businessName}</span>
           </div>
         </header>
-        <main className="min-w-0 px-4 py-5 pb-24 sm:p-6 md:pb-6">{children}</main>
+        <main className="min-w-0 px-4 py-5 pb-24 sm:p-6 md:pb-6">
+          <BusinessFeatureGate>{children}</BusinessFeatureGate>
+        </main>
       </div>
     </div>
   );
