@@ -14,6 +14,7 @@ export default function CustomersPage() {
   const [businessRole, setBusinessRole] = useState('');
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState('');
+  const [formError, setFormError] = useState('');
   const [form, setForm] = useState({ name: '', phone: '', email: '', address: '' });
 
   async function load() {
@@ -63,13 +64,21 @@ export default function CustomersPage() {
   async function handleSubmit(event) {
     event.preventDefault();
     setSaving(true);
+    setFormError('');
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       setSaving(false);
-      alert('Your session has expired. Please sign in again.');
+      setFormError('Your session has expired. Please sign in again.');
       return;
     }
-    const { business_id: businessId } = await getBusinessContext(supabase, user.id);
+    let businessId;
+    try {
+      ({ business_id: businessId } = await getBusinessContext(supabase, user.id));
+    } catch (contextError) {
+      setSaving(false);
+      setFormError(contextError.message || 'Could not load your business access.');
+      return;
+    }
 
     const { error } = await supabase.from('customers').insert({
       user_id: businessId,
@@ -83,7 +92,11 @@ export default function CustomersPage() {
       return;
     }
 
-    alert(error.message);
+    if (error.code === '42501') {
+      setFormError('You do not have permission to add customers. Confirm your role can write, Customers is enabled for your role, and your business access is active. If these settings are correct, run supabase/repair_customer_rls.sql in the Supabase SQL Editor.');
+    } else {
+      setFormError(`Could not add customer: ${error.message}`);
+    }
   }
 
   async function handleDelete(id) {
@@ -101,6 +114,7 @@ export default function CustomersPage() {
       <h1 className="mb-6 text-2xl font-bold text-slate-900">Customers</h1>
 
       {canWriteBusinessData(businessRole) && <form onSubmit={handleSubmit} className="card mb-8 grid gap-4 md:grid-cols-5">
+        {formError && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 md:col-span-5">{formError}</p>}
         <div>
           <label className="label">Name</label>
           <input className="input" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />

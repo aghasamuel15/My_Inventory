@@ -49,6 +49,8 @@ Team invitations are emailed using the configured `EMAIL_SMTP_HOST`, `EMAIL_SMTP
 
 If you hit the exact error `Could not find the 'address' column of 'customers' in the schema cache`, run the minimal repair script in `supabase/repair_missing_customer_address.sql` first, then rerun the full schema script if needed. This ensures the column exists and forces PostgREST to refresh its schema cache.
 
+If adding a customer fails with `new row violates row-level security policy for table "customers"`, first confirm the shared-business and team feature migrations were run in order. Then run `supabase/repair_customer_rls.sql` in the SQL Editor. It restores the business-scoped customer trigger and role/entitlement/feature-aware RLS policies; it does not bypass inactive business access or disabled Customers permissions.
+
 The script requests a PostgREST schema-cache refresh. If Supabase still reports a missing function immediately afterward, run `NOTIFY pgrst, 'reload schema';` in the SQL Editor and retry. The app blocks writes without a valid authenticated session.
 
 If Team access shows `Could not find the function public.get_business_role_features`, run `supabase/repair_business_role_feature_functions.sql` in the Supabase SQL Editor, then reload the app. This repairs the feature-permission RPCs and refreshes the PostgREST schema cache; it does not replace the full `supabase/team_feature_permissions.sql` migration, which also installs the feature access policies and triggers.
