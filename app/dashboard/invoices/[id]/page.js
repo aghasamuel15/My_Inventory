@@ -55,7 +55,7 @@ export default async function InvoiceDetailPage({ params }) {
   ));
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-5xl">
       <div className="mb-4 flex flex-wrap justify-start gap-3 print:hidden sm:justify-end">
         {canWrite && ((!isQuote && invoice.status === 'draft') ? (
           <IssueInvoiceButton invoiceId={invoice.id} />
@@ -74,119 +74,125 @@ export default async function InvoiceDetailPage({ params }) {
         {canWrite && isQuote && <ConvertQuoteButton invoiceId={invoice.id} />}
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-8" id="invoice-print">
-        <div className="mb-8 flex items-start justify-between gap-4">
-          <div>
-            <div className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">{isQuote ? 'Quote / estimate' : 'Invoice'}</div>
-            <div className="mt-2 flex items-center gap-3">
-              {profile?.business_logo_url && <img src={profile.business_logo_url} alt="" className="h-12 w-12 object-contain" />}
-              <h1 className="text-2xl font-black text-slate-900">{profile?.business_name || 'My Business'}</h1>
+      <div className="overflow-hidden rounded-[30px] border border-indigo-200 bg-white shadow-[0_24px_60px_rgba(79,70,229,0.08)] ring-1 ring-slate-200" id="invoice-print">
+        <div className="bg-gradient-to-r from-slate-900 via-violet-900 to-indigo-700 px-5 py-6 text-white sm:px-8 sm:py-7">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.3em] text-indigo-200">{isQuote ? 'Quote / estimate' : 'Invoice'}</div>
+              <div className="mt-3 flex items-center gap-3">
+                {profile?.business_logo_url && <img src={profile.business_logo_url} alt="" className="h-12 w-12 rounded-xl border border-white/30 bg-white/10 object-contain p-1" />}
+                <h1 className="text-2xl font-black tracking-[-0.05em] text-white sm:text-3xl">{profile?.business_name || 'My Business'}</h1>
+              </div>
+              <p className="mt-2 text-sm text-indigo-100">{isQuote ? 'Quote' : 'Invoice'} #{invoiceNumber}</p>
             </div>
-            <p className="mt-1 text-sm text-slate-500">{isQuote ? 'Quote' : 'Invoice'} #{invoiceNumber}</p>
-          </div>
-          <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${overdue ? 'bg-red-50 text-red-700' : 'bg-brand-50 text-brand-700'}`}>
-            {invoiceStatus}
-          </span>
-        </div>
-
-        <div className="mb-8 grid gap-6 sm:grid-cols-2">
-          <div>
-            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Billed to</div>
-            <div className="text-base font-semibold text-slate-900">{invoice.customer?.name || 'Customer'}</div>
-            <div className="text-sm text-slate-500">{invoice.customer?.phone || '—'}</div>
-            <div className="text-sm text-slate-500">{invoice.customer?.email || '—'}</div>
-            <div className="text-sm text-slate-500">{invoice.customer?.address || '—'}</div>
-          </div>
-
-          <div className="sm:text-right">
-            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Dates</div>
-            <div className="text-sm text-slate-600">Issue date: {invoice.issue_date || '—'}</div>
-            <div className="text-sm text-slate-600">Due date: {invoice.due_date || '—'}</div>
+            <span className={`inline-flex items-center rounded-full border border-white/20 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] ${overdue ? 'bg-red-500/25 text-white' : 'bg-white/10 text-white'}`}>
+              {invoiceStatus}
+            </span>
           </div>
         </div>
 
-        <div className="hidden overflow-x-auto rounded-xl border border-slate-200 sm:block">
-          <table className="w-full min-w-[560px] text-left text-sm">
-            <thead className="bg-slate-50 text-slate-500">
-              <tr>
-                <th className="px-4 py-3 font-medium">Description</th>
-                <th className="px-4 py-3 text-right font-medium">Qty</th>
-                <th className="px-4 py-3 text-right font-medium">Unit price</th>
-                <th className="px-4 py-3 text-right font-medium">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(invoice.items || []).map((item) => (
-                <tr key={item.id} className="border-t border-slate-200">
-                  <td className="px-4 py-3 text-slate-700">{item.description}</td>
-                  <td className="px-4 py-3 text-right text-slate-700">{Number(item.quantity || 0)}</td>
-                  <td className="px-4 py-3 text-right text-slate-700">{formatNaira(item.unit_price)}</td>
-                  <td className="px-4 py-3 text-right font-medium text-slate-900">{formatNaira(item.amount)}</td>
+        <div className="space-y-8 p-4 sm:p-8">
+          <div className="grid gap-6 sm:grid-cols-2">
+            <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4">
+              <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Billed to</div>
+              <div className="text-base font-semibold text-slate-900">{invoice.customer?.name || 'Customer'}</div>
+              <div className="mt-1 text-sm text-slate-600">{invoice.customer?.phone || '—'}</div>
+              <div className="text-sm text-slate-600">{invoice.customer?.email || '—'}</div>
+              <div className="text-sm text-slate-600">{invoice.customer?.address || '—'}</div>
+            </div>
+
+            <div className="rounded-[24px] border border-emerald-200 bg-emerald-50/80 p-4 sm:text-right">
+              <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Dates</div>
+              <div className="text-sm text-slate-700">Issue date: {invoice.issue_date || '—'}</div>
+              <div className="text-sm text-slate-700">Due date: {invoice.due_date || '—'}</div>
+            </div>
+          </div>
+
+          <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-slate-50 sm:block">
+            <table className="w-full min-w-[600px] text-left text-sm">
+              <thead className="bg-slate-100 text-slate-600">
+                <tr>
+                  <th className="px-4 py-3 font-semibold">Description</th>
+                  <th className="px-4 py-3 text-right font-semibold">Qty</th>
+                  <th className="px-4 py-3 text-right font-semibold">Unit price</th>
+                  <th className="px-4 py-3 text-right font-semibold">Amount</th>
                 </tr>
-              ))}
-              {(!invoice.items || invoice.items.length === 0) && (
-                <tr className="border-t border-slate-200">
-                  <td className="px-4 py-3 text-slate-700">{invoice.description || invoice.notes || 'Invoice amount'}</td>
-                  <td className="px-4 py-3 text-right text-slate-700">1</td>
-                  <td className="px-4 py-3 text-right text-slate-700">{formatNaira(invoice.total)}</td>
-                  <td className="px-4 py-3 text-right font-medium text-slate-900">{formatNaira(invoice.total)}</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        <div className="space-y-3 sm:hidden">
-          {(invoice.items || []).map((item) => (
-            <article key={item.id} className="rounded-xl border border-slate-200 p-3">
-              <h2 className="break-words font-semibold text-slate-900">{item.description}</h2>
-              <div className="mt-2 flex justify-between gap-3 text-sm text-slate-600">
-                <span>Qty {Number(item.quantity || 0)} × {formatNaira(item.unit_price)}</span>
-                <span className="shrink-0 font-semibold text-slate-900">{formatNaira(item.amount)}</span>
+              </thead>
+              <tbody>
+                {(invoice.items || []).map((item) => (
+                  <tr key={item.id} className="border-t border-slate-200 bg-white/80">
+                    <td className="px-4 py-3 text-slate-700">{item.description}</td>
+                    <td className="px-4 py-3 text-right text-slate-700">{Number(item.quantity || 0)}</td>
+                    <td className="px-4 py-3 text-right text-slate-700">{formatNaira(item.unit_price)}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-slate-900">{formatNaira(item.amount)}</td>
+                  </tr>
+                ))}
+                {(!invoice.items || invoice.items.length === 0) && (
+                  <tr className="border-t border-slate-200 bg-white/80">
+                    <td className="px-4 py-3 text-slate-700">{invoice.description || invoice.notes || 'Invoice amount'}</td>
+                    <td className="px-4 py-3 text-right text-slate-700">1</td>
+                    <td className="px-4 py-3 text-right text-slate-700">{formatNaira(invoice.total)}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-slate-900">{formatNaira(invoice.total)}</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div className="space-y-3 sm:hidden">
+            {(invoice.items || []).map((item) => (
+              <article key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                <h2 className="break-words font-semibold text-slate-900">{item.description}</h2>
+                <div className="mt-2 flex justify-between gap-3 text-sm text-slate-600">
+                  <span>Qty {Number(item.quantity || 0)} × {formatNaira(item.unit_price)}</span>
+                  <span className="shrink-0 font-semibold text-slate-900">{formatNaira(item.amount)}</span>
+                </div>
+              </article>
+            ))}
+            {(!invoice.items || invoice.items.length === 0) && (
+              <article className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                <h2 className="font-semibold text-slate-900">{invoice.description || invoice.notes || 'Invoice amount'}</h2>
+                <div className="mt-2 flex justify-between gap-3 text-sm text-slate-600">
+                  <span>Qty 1 × {formatNaira(invoice.total)}</span>
+                  <span className="shrink-0 font-semibold text-slate-900">{formatNaira(invoice.total)}</span>
+                </div>
+              </article>
+            )}
+          </div>
+
+          <div className="flex justify-end">
+            <div className="w-full max-w-sm rounded-[24px] border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+              <div className="space-y-2.5 text-sm text-slate-700">
+                <div className="flex justify-between">
+                  <span>Subtotal</span>
+                  <span>{formatNaira(invoice.subtotal || 0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Tax</span>
+                  <span>{formatNaira(invoice.tax || 0)}</span>
+                </div>
+                <div className="flex justify-between border-t border-slate-200 pt-3 text-base font-bold text-slate-900">
+                  <span>Total</span>
+                  <span className="tracking-[-0.04em]">{formatNaira(invoice.total || 0)}</span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span>Paid</span>
+                  <span>{formatNaira(paidTotal)}</span>
+                </div>
+                <div className="flex justify-between rounded-2xl bg-emerald-100 px-3 py-2 text-base font-black text-emerald-900">
+                  <span>Balance due</span>
+                  <span className="tracking-[-0.04em]">{formatNaira(balance)}</span>
+                </div>
               </div>
-            </article>
-          ))}
-          {(!invoice.items || invoice.items.length === 0) && (
-            <article className="rounded-xl border border-slate-200 p-3">
-              <h2 className="font-semibold text-slate-900">{invoice.description || invoice.notes || 'Invoice amount'}</h2>
-              <div className="mt-2 flex justify-between gap-3 text-sm text-slate-600">
-                <span>Qty 1 × {formatNaira(invoice.total)}</span>
-                <span className="shrink-0 font-semibold text-slate-900">{formatNaira(invoice.total)}</span>
-              </div>
-            </article>
+            </div>
+          </div>
+
+          {invoice.notes && (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-amber-50/60 p-4 text-sm text-slate-700">
+              <div className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Notes</div>
+              {invoice.notes}
+            </div>
           )}
         </div>
-
-        <div className="mt-8 flex justify-end">
-          <div className="w-full max-w-xs space-y-2 text-sm text-slate-700">
-            <div className="flex justify-between">
-              <span>Subtotal</span>
-              <span>{formatNaira(invoice.subtotal || 0)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Tax</span>
-              <span>{formatNaira(invoice.tax || 0)}</span>
-            </div>
-            <div className="flex justify-between border-t border-slate-200 pt-2 text-base font-bold text-slate-900">
-              <span>Total</span>
-              <span>{formatNaira(invoice.total || 0)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Paid</span>
-              <span>{formatNaira(paidTotal)}</span>
-            </div>
-            <div className="flex justify-between text-base font-bold text-slate-900">
-              <span>Balance due</span>
-              <span>{formatNaira(balance)}</span>
-            </div>
-          </div>
-        </div>
-
-        {invoice.notes && (
-          <div className="mt-8 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
-            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Notes</div>
-            {invoice.notes}
-          </div>
-        )}
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">

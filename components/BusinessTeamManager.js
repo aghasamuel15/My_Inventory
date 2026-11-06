@@ -20,6 +20,18 @@ const configurableFeatures = [
 ];
 const allFeatures = configurableFeatures.map((feature) => feature.id);
 
+function getRoleFeatureRpcError(error) {
+  const missingFunction = error?.code === 'PGRST202'
+    || error?.message?.includes('get_business_role_features')
+    || error?.message?.includes('set_business_role_features');
+
+  if (missingFunction) {
+    return 'The Supabase role-feature functions are missing from the schema cache. Run supabase/repair_business_role_feature_functions.sql in the Supabase SQL Editor, then reload this page.';
+  }
+
+  return error?.message || 'Unknown Supabase error.';
+}
+
 export default function BusinessTeamManager() {
   const [supabase] = useState(() => createClient());
   const [userId, setUserId] = useState('');
@@ -55,7 +67,9 @@ export default function BusinessTeamManager() {
         await loadTeam(context.business_id);
         if (context.role === 'owner') {
           const { data: permissions, error: permissionsError } = await supabase.rpc('get_business_role_features');
-          if (permissionsError) throw new Error(`Could not load role feature settings: ${permissionsError.message}`);
+          if (permissionsError) {
+            throw new Error(`Could not load role feature settings: ${getRoleFeatureRpcError(permissionsError)}`);
+          }
           setRoleFeatures(Object.fromEntries(
             (permissions || []).map((item) => [item.role, item.features || allFeatures])
           ));
@@ -135,7 +149,7 @@ export default function BusinessTeamManager() {
       p_features: roleFeatures[targetRole] || [],
     });
     if (saveError) {
-      setError(`Could not save ${roleLabels[targetRole]} access: ${saveError.message}`);
+      setError(`Could not save ${roleLabels[targetRole]} access: ${getRoleFeatureRpcError(saveError)}`);
     } else {
       setMessage(`${roleLabels[targetRole]} feature access saved.`);
     }

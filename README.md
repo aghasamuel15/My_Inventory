@@ -51,6 +51,8 @@ If you hit the exact error `Could not find the 'address' column of 'customers' i
 
 The script requests a PostgREST schema-cache refresh. If Supabase still reports a missing function immediately afterward, run `NOTIFY pgrst, 'reload schema';` in the SQL Editor and retry. The app blocks writes without a valid authenticated session.
 
+If Team access shows `Could not find the function public.get_business_role_features`, run `supabase/repair_business_role_feature_functions.sql` in the Supabase SQL Editor, then reload the app. This repairs the feature-permission RPCs and refreshes the PostgREST schema cache; it does not replace the full `supabase/team_feature_permissions.sql` migration, which also installs the feature access policies and triggers.
+
 ## Paystack API endpoints
 - POST /api/paystack/initialize
 - GET /api/paystack/verify (Paystack return URL; server-side verification)
