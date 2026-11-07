@@ -160,7 +160,7 @@ export default async function InvoiceDetailPage({ params }) {
           </div>
 
           <div className="flex justify-end">
-            <div className="w-full max-w-sm rounded-[24px] border border-[#e3e9e2] bg-gradient-to-br from-[#f7f8f5] via-white to-[#f1f7f1] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+            <div className="invoice-summary-card invoice-summary-card--outstanding w-full max-w-sm rounded-[24px] border border-[#e3e9e2] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
               <div className="space-y-2.5 text-sm text-slate-700">
                 <div className="flex justify-between">
                   <span>Subtotal</span>

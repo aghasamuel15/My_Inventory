@@ -855,26 +855,28 @@ a:focus-visible {
   }
 }
 
-:root[data-theme="dark"] [class~="from-[#f1f7f1]"],
-:root[data-theme="dark"] [class~="from-[#eaf3ed]"] {
-  background-image: none;
-  background-color: #20372a;
+.invoice-summary-card--outstanding {
+  background: linear-gradient(135deg, #f1f7f1, #fff, #eaf3ed);
 }
 
-:root[data-theme="dark"] [class~="from-[#fbf7ef]"] {
-  background-image: none;
-  background-color: #382f20;
+.invoice-summary-card--overdue {
+  background: linear-gradient(135deg, #fbf7ef, #fff, #f7f1e7);
+}
+
+:root[data-theme="dark"] .invoice-summary-card--outstanding {
+  background: #20372a;
+}
+
+:root[data-theme="dark"] .invoice-summary-card--overdue {
+  background: #382f20;
 }
 
 @media screen and (prefers-color-scheme: dark) {
-  :root[data-theme="system"] [class~="from-[#f1f7f1]"],
-  :root[data-theme="system"] [class~="from-[#eaf3ed]"] {
-    background-image: none;
-    background-color: #20372a;
+  :root[data-theme="system"] .invoice-summary-card--outstanding {
+    background: #20372a;
   }
 
-  :root[data-theme="system"] [class~="from-[#fbf7ef]"] {
-    background-image: none;
-    background-color: #382f20;
+  :root[data-theme="system"] .invoice-summary-card--overdue {
+    background: #382f20;
   }
 }

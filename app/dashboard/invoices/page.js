@@ -126,11 +126,11 @@ export default function InvoicesPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-[24px] border border-[#dce8df] bg-gradient-to-br from-[#f1f7f1] via-white to-[#eaf3ed] p-4 shadow-[0_12px_28px_rgba(31,71,49,0.06)]">
+        <div className="invoice-summary-card invoice-summary-card--outstanding rounded-[24px] border border-[#dce8df] p-4 shadow-[0_12px_28px_rgba(31,71,49,0.06)]">
           <div className="text-sm font-medium text-[#68756f]">Outstanding balance</div>
           <div className="mt-3 text-3xl font-bold tabular-nums tracking-normal text-[#20372c]">{formatNaira(outstanding)}</div>
         </div>
-        <div className="rounded-[24px] border border-[#eadfcf] bg-gradient-to-br from-[#fbf7ef] via-white to-[#f7f1e7] p-4 shadow-[0_12px_28px_rgba(124,92,48,0.05)]">
+        <div className="invoice-summary-card invoice-summary-card--overdue rounded-[24px] border border-[#eadfcf] p-4 shadow-[0_12px_28px_rgba(124,92,48,0.05)]">
           <div className="text-sm font-medium text-[#68756f]">Overdue ({overdue.length})</div>
           <div className="mt-3 text-3xl font-bold tabular-nums tracking-normal text-[#8b6740]">{formatNaira(overdueBalance)}</div>
         </div>
