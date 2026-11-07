@@ -5,8 +5,16 @@ security definer
 set search_path = public, pg_temp
 as $$
 declare
-  owner_id uuid := public.current_business_id();
+  owner_id uuid;
 begin
+  if auth.role() = 'service_role' then
+    if new.user_id is null then
+      raise exception 'A business owner ID is required for service-role inserts';
+    end if;
+    return new;
+  end if;
+
+  owner_id := public.current_business_id();
   if owner_id is null then
     raise exception 'Your account is not linked to an active business';
   end if;
