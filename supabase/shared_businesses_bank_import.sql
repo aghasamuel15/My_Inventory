@@ -122,17 +122,11 @@ as $$
 declare
   owner_id uuid;
 begin
-  if auth.role() = 'service_role' then
-    if new.user_id is null then
-      raise exception 'A business owner ID is required for service-role inserts';
-    end if;
-    return new;
+  owner_id := coalesce(public.current_business_id(), new.user_id);
+  if owner_id is null then
+    raise exception 'Your account is not linked to an active business and no business owner ID was provided';
   end if;
 
-  owner_id := public.current_business_id();
-  if owner_id is null then
-    raise exception 'Your account is not linked to an active business';
-  end if;
   new.user_id := owner_id;
   return new;
 end;
