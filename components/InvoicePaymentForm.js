@@ -44,8 +44,10 @@ export default function InvoicePaymentForm({ invoiceId, balance }) {
             body: JSON.stringify({ paymentId }),
           });
           const receiptResult = await response.json();
-          if (!response.ok) {
+          if (!response.ok || !receiptResult.ok) {
             receiptMessage = `Payment recorded, but the receipt email failed: ${receiptResult.error || 'Please retry the receipt.'}`;
+          } else if (receiptResult.alreadySent) {
+            receiptMessage = 'Payment recorded; the receipt was already sent.';
           } else {
             receiptMessage = 'Payment recorded and receipt emailed.';
           }
