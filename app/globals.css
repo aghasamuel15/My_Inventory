@@ -814,3 +814,27 @@ a:focus-visible {
     border-color: #46564b;
   }
 }
+
+@media screen {
+  :root[data-theme="dark"] body,
+  :root[data-theme="dark"] body * {
+    color: #fff !important;
+  }
+
+  :root[data-theme="dark"] input::placeholder,
+  :root[data-theme="dark"] textarea::placeholder {
+    color: #fff !important;
+  }
+}
+
+@media screen and (prefers-color-scheme: dark) {
+  :root[data-theme="system"] body,
+  :root[data-theme="system"] body * {
+    color: #fff !important;
+  }
+
+  :root[data-theme="system"] input::placeholder,
+  :root[data-theme="system"] textarea::placeholder {
+    color: #fff !important;
+  }
+}
