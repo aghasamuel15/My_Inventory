@@ -825,6 +825,14 @@ a:focus-visible {
   :root[data-theme="dark"] textarea::placeholder {
     color: #fff !important;
   }
+
+  :root[data-theme="dark"] input[type="file"]::file-selector-button,
+  :root[data-theme="dark"] input[type="file"]::-webkit-file-upload-button {
+    border: 1px solid #46564b;
+    border-radius: 0.5rem;
+    background-color: #202c25;
+    color: #fff !important;
+  }
 }
 
 @media screen and (prefers-color-scheme: dark) {
@@ -835,6 +843,14 @@ a:focus-visible {
 
   :root[data-theme="system"] input::placeholder,
   :root[data-theme="system"] textarea::placeholder {
+    color: #fff !important;
+  }
+
+  :root[data-theme="system"] input[type="file"]::file-selector-button,
+  :root[data-theme="system"] input[type="file"]::-webkit-file-upload-button {
+    border: 1px solid #46564b;
+    border-radius: 0.5rem;
+    background-color: #202c25;
     color: #fff !important;
   }
 }
