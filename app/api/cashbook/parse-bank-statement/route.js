@@ -89,9 +89,6 @@ async function parsePdf(file) {
 
         if (text.trim()) cells.push(text.trim());
         if (containsDate(cells)) rows.push(cells);
-        if (rows.length > 5000) {
-          throw new Error('This PDF has more than 5,000 rows. Split it into smaller files and try again.');
-        }
       }
     }
   } finally {
@@ -144,9 +141,6 @@ async function parseWorkbook(file) {
       const values = fields.map((_, index) => getCellText(row.getCell(index + 1)));
       if (values.some(Boolean) && containsDate([values[dateColumnIndex]])) {
         rows.push(Object.fromEntries(fields.map((field, index) => [field, values[index]])));
-      }
-      if (rows.length > 5000) {
-        throw new Error(`Worksheet "${worksheet.name}" has more than 5,000 rows. Split it into smaller files and try again.`);
       }
     }
 

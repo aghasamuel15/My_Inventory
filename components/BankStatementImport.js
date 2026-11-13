@@ -48,11 +48,8 @@ async function parsePdfFile(file) {
   if (!lines.length) {
     throw new Error('No transaction rows found. Make sure this PDF contains selectable text and a date column.');
   }
-  if (lines.length > 5000) {
-    throw new Error('This file has more than 5,000 transaction rows. Split it into smaller files and try again.');
-  }
 
-  const columnCount = Math.max(...lines.map((line) => line.length));
+  const columnCount = lines.reduce((max, line) => Math.max(max, line.length), 0);
   const fields = Array.from({ length: columnCount }, (_, index) => `Column ${index + 1}`);
   const rows = lines.map((line) => Object.fromEntries(fields.map((field, index) => [field, line[index] || ''])));
   return { fields, rows };
@@ -103,10 +100,6 @@ export default function BankStatementImport({ supabase, userId, canWrite }) {
   function setParsedRows(columns, parsedRows) {
     if (!parsedRows.length) {
       setError('The file has no transaction rows.');
-      return;
-    }
-    if (parsedRows.length > 5000) {
-      setError('This file has more than 5,000 rows. Split it into smaller files and try again.');
       return;
     }
 
