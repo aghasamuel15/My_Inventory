@@ -38,6 +38,7 @@ export default function BusinessTeamManager() {
   const [role, setRole] = useState('');
   const [members, setMembers] = useState([]);
   const [roleFeatures, setRoleFeatures] = useState({});
+  const [roleFeaturesLoaded, setRoleFeaturesLoaded] = useState(false);
   const [memberName, setMemberName] = useState('');
   const [email, setEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('staff');
@@ -74,6 +75,7 @@ export default function BusinessTeamManager() {
           setRoleFeatures(Object.fromEntries(
             (permissions || []).map((item) => [item.role, item.features || allFeatures])
           ));
+          setRoleFeaturesLoaded(true);
         }
       } catch (loadError) {
         setError(loadError.message || 'Could not load business team.');
@@ -327,7 +329,7 @@ export default function BusinessTeamManager() {
         </ul>
       ) : <p className="text-sm text-slate-500">No team members yet.</p>}
       {!canManageBusiness(role) && <p className="text-xs text-slate-500">Only owners and managers can change team access.</p>}
-      {role === 'owner' && (
+      {role === 'owner' && roleFeaturesLoaded && (
         <div className="space-y-4 border-t border-slate-100 pt-5">
           <div>
             <h3 className="font-semibold text-slate-900">Feature access by role</h3>
