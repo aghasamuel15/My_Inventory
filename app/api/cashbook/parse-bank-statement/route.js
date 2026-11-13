@@ -1,7 +1,13 @@
 import { createServerSupabaseClient } from '../../../../lib/supabaseServer';
 import { NextResponse } from 'next/server';
+import { join, sep } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 export const runtime = 'nodejs';
+
+const pdfjsDirectory = join(process.cwd(), 'node_modules', 'pdfjs-dist');
+const standardFontDataUrl = pathToFileURL(join(pdfjsDirectory, 'standard_fonts') + sep).href;
+const cMapUrl = pathToFileURL(join(pdfjsDirectory, 'cmaps') + sep).href;
 
 export async function POST(request) {
   const supabase = createServerSupabaseClient();
@@ -30,8 +36,8 @@ export async function POST(request) {
     const loadingTask = pdfjs.getDocument({
       data: new Uint8Array(await file.arrayBuffer()),
       useSystemFonts: true,
-      standardFontDataUrl: new URL('../../standard_fonts/', import.meta.resolve('pdfjs-dist/legacy/build/pdf.mjs')).href,
-      cMapUrl: new URL('../../cmaps/', import.meta.resolve('pdfjs-dist/legacy/build/pdf.mjs')).href,
+      standardFontDataUrl,
+      cMapUrl,
       cMapPacked: true,
     });
     const pdf = await loadingTask.promise;
