@@ -58,6 +58,17 @@ async function parsePdfFile(file) {
   return { fields, rows };
 }
 
+async function parseXlsxFile(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await fetch('/api/cashbook/parse-bank-statement', { method: 'POST', body: formData });
+  const result = await response.json();
+  if (!response.ok) {
+    throw new Error(result.error || 'Could not read the XLSX file.');
+  }
+  return result.sheets || [];
+}
+
 function fieldSelect(label, value, fields, onChange) {
   return (
     <label className="flex flex-col gap-1 text-xs font-semibold text-slate-600">
@@ -72,6 +83,8 @@ function fieldSelect(label, value, fields, onChange) {
 
 export default function BankStatementImport({ supabase, userId, canWrite }) {
   const [fileName, setFileName] = useState('');
+  const [sheets, setSheets] = useState([]);
+  const [selectedSheet, setSelectedSheet] = useState('');
   const [fields, setFields] = useState([]);
   const [rows, setRows] = useState([]);
   const [mapping, setMapping] = useState({ date: '', description: '', amountMode: 'signed', amount: '', debit: '', credit: '' });
@@ -105,16 +118,19 @@ export default function BankStatementImport({ supabase, userId, canWrite }) {
       || columns.find((field) => parsedRows.slice(0, 20).filter((row) => parseDate(row[field])).length >= Math.min(3, parsedRows.length))
       || '';
     const dateIndex = columns.indexOf(dateField);
+    const amountField = findField(['amount', 'transactionamount', 'value']);
+    const debitField = findField(['debit', 'withdrawal', 'withdrawals']);
+    const creditField = findField(['credit', 'deposit', 'deposits']);
 
     setMapping({
       date: dateField,
       description: findField(['description', 'details', 'memo', 'narration', 'transactiondescription'])
         || columns[dateIndex + 1]
         || '',
-      amountMode: 'signed',
-      amount: findField(['amount', 'transactionamount', 'value']),
-      debit: findField(['debit', 'withdrawal', 'withdrawals']),
-      credit: findField(['credit', 'deposit', 'deposits']),
+      amountMode: !amountField && debitField && creditField ? 'columns' : 'signed',
+      amount: amountField,
+      debit: debitField,
+      credit: creditField,
     });
   }
 
@@ -127,12 +143,29 @@ export default function BankStatementImport({ supabase, userId, canWrite }) {
     setReviewed(false);
     setReviewRows([]);
     setRows([]);
+    setSheets([]);
+    setSelectedSheet('');
     setFileName(file.name);
     if (file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf') {
       setBusy(true);
       parsePdfFile(file)
         .then(({ fields: columns, rows: parsedRows }) => setParsedRows(columns, parsedRows))
         .catch((parseError) => setError(`Could not read the PDF: ${parseError.message || 'Unknown PDF error.'}`))
+        .finally(() => setBusy(false));
+      return;
+    }
+
+    if (file.name.toLowerCase().endsWith('.xlsx') ||
+      file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+      setBusy(true);
+      parseXlsxFile(file)
+        .then((parsedSheets) => {
+          if (!parsedSheets.length) throw new Error('No transaction worksheets found in this workbook.');
+          setSheets(parsedSheets);
+          setSelectedSheet(parsedSheets[0].name);
+          setParsedRows(parsedSheets[0].fields, parsedSheets[0].rows);
+        })
+        .catch((parseError) => setError(`Could not read the XLSX file: ${parseError.message || 'Unknown spreadsheet error.'}`))
         .finally(() => setBusy(false));
       return;
     }
@@ -279,6 +312,8 @@ export default function BankStatementImport({ supabase, userId, canWrite }) {
       setReviewRows([]);
       setReviewed(false);
       setFileName('');
+      setSheets([]);
+      setSelectedSheet('');
       window.dispatchEvent(new Event('cashbook-transactions-changed'));
     }
   }
@@ -288,15 +323,34 @@ export default function BankStatementImport({ supabase, userId, canWrite }) {
   return (
     <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
       <h2 className="text-lg font-semibold text-slate-900">Import bank statement</h2>
-      <p className="mt-1 text-sm text-slate-600">Upload a CSV or text-based PDF, map its columns, review suggested matches, and import unmatched rows as bank cashbook adjustments. Scanned PDFs are not supported.</p>
+      <p className="mt-1 text-sm text-slate-600">Upload a CSV, text-based PDF, or XLSX, map its columns, review suggested matches, and import unmatched rows as bank cashbook adjustments. Scanned PDFs are not supported.</p>
       <label className="mt-4 flex flex-col gap-1.5 text-xs font-semibold text-slate-600">
-        Bank statement file (CSV or PDF)
-        <input type="file" accept=".csv,text/csv,.pdf,application/pdf" onChange={handleFile} className="text-sm font-normal" />
+        Bank statement file (CSV, PDF, or XLSX)
+        <input type="file" accept=".csv,text/csv,.pdf,application/pdf,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={handleFile} className="text-sm font-normal" />
       </label>
       {busy && !rows.length && <p role="status" className="mt-3 text-sm text-slate-600">Reading bank statement...</p>}
       {fileName && rows.length > 0 && (
         <div className="mt-4 space-y-4">
           <p className="text-sm font-medium text-slate-700">{fileName} · {rows.length} row(s)</p>
+          {sheets.length > 1 && (
+            <label className="flex max-w-md flex-col gap-1 text-xs font-semibold text-slate-600">
+              Worksheet to import
+              <select
+                className="input bg-slate-50"
+                value={selectedSheet}
+                onChange={(event) => {
+                  const sheet = sheets.find((item) => item.name === event.target.value);
+                  if (!sheet) return;
+                  setSelectedSheet(sheet.name);
+                  setReviewed(false);
+                  setReviewRows([]);
+                  setParsedRows(sheet.fields, sheet.rows);
+                }}
+              >
+                {sheets.map((sheet) => <option key={sheet.name} value={sheet.name}>{sheet.name}</option>)}
+              </select>
+            </label>
+          )}
           <div className="grid gap-3 sm:grid-cols-3">
             {fieldSelect('Date column', mapping.date, fields, (value) => updateMapping('date', value))}
             {fieldSelect('Description column', mapping.description, fields, (value) => updateMapping('description', value))}

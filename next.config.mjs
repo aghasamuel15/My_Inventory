@@ -2,7 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   experimental: {
-    serverComponentsExternalPackages: ['pdfjs-dist'],
+    serverComponentsExternalPackages: ['pdfjs-dist', 'exceljs'],
     outputFileTracingIncludes: {
       '/api/cashbook/parse-bank-statement': [
         './node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs',
