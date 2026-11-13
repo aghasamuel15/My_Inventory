@@ -26,7 +26,7 @@ function getRoleFeatureRpcError(error) {
     || error?.message?.includes('set_business_role_features');
 
   if (missingFunction) {
-    return 'The Supabase role-feature functions are missing from the schema cache. Run supabase/repair_business_role_feature_functions.sql in the Supabase SQL Editor, then reload this page.';
+    return 'Team feature settings are unavailable. Please try again later.';
   }
 
   return error?.message || 'Unknown Supabase error.';
