@@ -120,14 +120,9 @@ export async function POST(request) {
     const invitationUrl = new URL('/invite', baseUrl);
     invitationUrl.searchParams.set('email', email);
     invitationUrl.searchParams.set('mode', isPending ? 'signup' : 'login');
-    const signupUrl = new URL('/signup', baseUrl);
-    signupUrl.searchParams.set('email', email);
-    const loginUrl = new URL('/login', baseUrl);
-    loginUrl.searchParams.set('email', email);
     const recipientName = escapeHtml(name);
     const businessName = escapeHtml(business.name);
     const roleName = escapeHtml(role[0].toUpperCase() + role.slice(1));
-    const action = isPending ? 'View invitation and create account' : 'View invitation and sign in';
     const greeting = isPending
       ? `You have been invited to join ${businessName} on SME Tracker as a ${roleName}.`
       : `You have been added to ${businessName} on SME Tracker as a ${roleName}.`;
@@ -137,8 +132,8 @@ export async function POST(request) {
         from: invoiceEmailFrom(),
         to: email,
         subject: 'Invitation to join a business on SME Tracker',
-        html: `<div style="font-family:Arial,sans-serif;color:#1f2937;line-height:1.6"><h2>You're invited to SME Tracker</h2><p>Hello ${recipientName},</p><p>${greeting}</p><p><a href="${escapeHtml(invitationUrl.toString())}" style="display:inline-block;padding:12px 20px;background:#158765;color:#fff;text-decoration:none;border-radius:8px">${action}</a></p><p>If the button does not work, open this link:</p><p><a href="${escapeHtml(invitationUrl.toString())}">${escapeHtml(invitationUrl.toString())}</a></p><p>Use the invited email address to create an account or sign in. You can also use these direct links:</p><p><a href="${escapeHtml(signupUrl.toString())}">Create an account</a> · <a href="${escapeHtml(loginUrl.toString())}">Sign in</a></p><p>If you were not expecting this invitation, you can ignore this email.</p></div>`,
-        text: `Hello ${email},\n\n${greeting}\n\nOpen your invitation: ${invitationUrl}\n\nCreate an account: ${signupUrl}\nSign in: ${loginUrl}\n\nUse the invited email address so the business can match your account to its invitation. If you were not expecting this invitation, you can ignore this email.`,
+        html: `<div style="font-family:Arial,sans-serif;color:#1f2937;line-height:1.6"><h2>Invitation to join SME Tracker</h2><p>Hello ${recipientName},</p><p>${greeting}</p><p>Your role: <strong>${roleName}</strong></p><p><a href="${escapeHtml(invitationUrl.toString())}" style="display:inline-block;padding:12px 20px;background:#158765;color:#fff;text-decoration:none;border-radius:8px">Review invitation</a></p><p>If the button does not work, copy and open this link:</p><p><a href="${escapeHtml(invitationUrl.toString())}">${escapeHtml(invitationUrl.toString())}</a></p><p>Use the invited email address to create an account or sign in. If you were not expecting this invitation, you can ignore this email.</p></div>`,
+        text: `Hello ${name},\n\n${greeting}\nYour role: ${roleName}\n\nReview your invitation: ${invitationUrl}\n\nUse the invited email address to create an account or sign in. If you were not expecting this invitation, you can ignore this email.`,
       });
     } catch (emailError) {
       return NextResponse.json({
