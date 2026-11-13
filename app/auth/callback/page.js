@@ -20,20 +20,20 @@ function getSafeNextPath(value) {
 
 export default function AuthCallbackPage() {
   const router = useRouter();
-  const started = useRef(false);
+  const completionRef = useRef(null);
   const [error, setError] = useState('');
   const [resetFlow, setResetFlow] = useState(false);
 
   useEffect(() => {
-    if (started.current) return;
-    started.current = true;
     let active = true;
 
-    async function completeAuth() {
-      try {
-        const requestUrl = new URL(window.location.href);
-        const destination = getSafeNextPath(requestUrl.searchParams.get('next'));
-        const isResetFlow = destination === '/reset-password';
+    const requestUrl = new URL(window.location.href);
+    const destination = getSafeNextPath(requestUrl.searchParams.get('next'));
+    const isResetFlow = destination === '/reset-password';
+    setResetFlow(isResetFlow);
+
+    if (!completionRef.current) {
+      completionRef.current = (async () => {
         const errorCode = requestUrl.searchParams.get('error');
         const code = requestUrl.searchParams.get('code');
         const flowId = requestUrl.searchParams.get('sb_flow_id');
@@ -41,7 +41,6 @@ export default function AuthCallbackPage() {
         const otpType = requestUrl.searchParams.get('type')
           || (isResetFlow ? 'recovery' : '');
 
-        if (active) setResetFlow(isResetFlow);
         if (errorCode) {
           throw new Error('This link is invalid or has expired. Request a new link to continue.');
         }
@@ -67,18 +66,22 @@ export default function AuthCallbackPage() {
           }
         }
 
-        if (active) {
-          router.replace(destination);
-          router.refresh();
-        }
-      } catch (authError) {
+        return destination;
+      })();
+    }
+
+    completionRef.current
+      .then((safeDestination) => {
+        if (!active) return;
+        router.replace(safeDestination);
+        router.refresh();
+      })
+      .catch((authError) => {
         if (active) {
           setError(authError.message || 'Could not verify this link. Request a new one to continue.');
         }
-      }
-    }
+      });
 
-    completeAuth();
     return () => { active = false; };
   }, [router]);
 
