@@ -8,6 +8,7 @@ export const runtime = 'nodejs';
 const pdfjsDirectory = join(process.cwd(), 'node_modules', 'pdfjs-dist');
 const standardFontDataUrl = pathToFileURL(join(pdfjsDirectory, 'standard_fonts') + sep).href;
 const cMapUrl = pathToFileURL(join(pdfjsDirectory, 'cmaps') + sep).href;
+const workerSrc = pathToFileURL(join(pdfjsDirectory, 'legacy', 'build', 'pdf.worker.mjs')).href;
 
 export async function POST(request) {
   const supabase = createServerSupabaseClient();
@@ -33,6 +34,7 @@ export async function POST(request) {
 
   try {
     const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
     const loadingTask = pdfjs.getDocument({
       data: new Uint8Array(await file.arrayBuffer()),
       useSystemFonts: true,
