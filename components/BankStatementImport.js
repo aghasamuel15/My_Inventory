@@ -4,6 +4,8 @@ import { useState } from 'react';
 import Papa from 'papaparse';
 import { getBusinessContext } from '../lib/businessContext';
 
+const IMPORT_BATCH_SIZE = 20;
+
 function parseAmount(value) {
   const cleaned = String(value ?? '').replace(/[₦$,\s]/g, '');
   if (!cleaned) return null;
@@ -88,6 +90,7 @@ export default function BankStatementImport({ supabase, userId, canWrite }) {
   const [reviewRows, setReviewRows] = useState([]);
   const [reviewed, setReviewed] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [importProgress, setImportProgress] = useState(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
@@ -264,39 +267,47 @@ export default function BankStatementImport({ supabase, userId, canWrite }) {
 
   async function importTransactions() {
     setBusy(true);
+    setImportProgress({ completed: 0, total: reviewRows.length });
     setError('');
     setMessage('');
     let imported = 0;
     let failures = 0;
     const occurrences = new Map();
     const errorMessages = [];
-    for (const row of reviewRows) {
-      const duplicateKey = `${row.date}|${row.description}|${row.amount.toFixed(2)}|${row.direction}`;
-      const occurrence = occurrences.get(duplicateKey) || 0;
-      occurrences.set(duplicateKey, occurrence + 1);
-      const [matchedType, matchedId] = row.selected ? row.selected.split(':') : [null, null];
-      try {
-        const result = await supabase.rpc('import_bank_statement_transaction', {
-          p_transaction_date: row.date,
-          p_description: row.description,
-          p_amount: row.amount,
-          p_direction: row.direction,
-          p_fingerprint: await fingerprint(row, occurrence),
-          p_matched_type: matchedType,
-          p_matched_id: matchedId,
-        });
-        if (result.error) {
+    for (let offset = 0; offset < reviewRows.length; offset += IMPORT_BATCH_SIZE) {
+      const batch = reviewRows.slice(offset, offset + IMPORT_BATCH_SIZE);
+      const results = await Promise.all(batch.map(async (row) => {
+        try {
+          const duplicateKey = `${row.date}|${row.description}|${row.amount.toFixed(2)}|${row.direction}`;
+          const occurrence = occurrences.get(duplicateKey) || 0;
+          occurrences.set(duplicateKey, occurrence + 1);
+          const [matchedType, matchedId] = row.selected ? row.selected.split(':') : [null, null];
+          const result = await supabase.rpc('import_bank_statement_transaction', {
+            p_transaction_date: row.date,
+            p_description: row.description,
+            p_amount: row.amount,
+            p_direction: row.direction,
+            p_fingerprint: await fingerprint(row, occurrence),
+            p_matched_type: matchedType,
+            p_matched_id: matchedId,
+          });
+          return result.error?.message || null;
+        } catch (importError) {
+          return importError.message || 'Unexpected import error.';
+        }
+      }));
+      for (const result of results) {
+        if (result) {
           failures += 1;
-          if (errorMessages.length < 3) errorMessages.push(result.error.message);
+          if (errorMessages.length < 3) errorMessages.push(result);
         } else {
           imported += 1;
         }
-      } catch (importError) {
-        failures += 1;
-        if (errorMessages.length < 3) errorMessages.push(importError.message || 'Unexpected import error.');
       }
+      setImportProgress({ completed: offset + batch.length, total: reviewRows.length });
     }
     setBusy(false);
+    setImportProgress(null);
     if (failures) {
       setError(`${imported} transaction(s) processed; ${failures} failed. ${errorMessages.join(' ')}`);
     } else {
@@ -392,8 +403,13 @@ export default function BankStatementImport({ supabase, userId, canWrite }) {
             ))}
           </div>
           <button type="button" className="btn-primary" onClick={importTransactions} disabled={busy}>
-            {busy ? 'Importing...' : `Import ${reviewRows.length} transaction(s)`}
+            {busy ? `Importing ${importProgress?.completed ?? 0} / ${importProgress?.total ?? reviewRows.length}...` : `Import ${reviewRows.length} transaction(s)`}
           </button>
+          {busy && importProgress && (
+            <p role="status" className="text-sm text-slate-600">
+              Imported {importProgress.completed} of {importProgress.total} transactions
+            </p>
+          )}
         </div>
       )}
       {error && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}
