@@ -19,7 +19,7 @@ A Nigerian SME finance tracker for recording sales, expenses, customer debt, inv
 - Share payment links by WhatsApp
 - Create recurring schedules that generate reviewable invoice drafts
 - Add a business name and logo to invoice PDFs
-- Import bank-statement CSVs, map their columns, review suggested matches, and add unmatched entries to Cashbook without duplicating recorded transactions
+- Import bank-statement CSVs or text-based PDFs, map their columns, review suggested matches, and add unmatched entries to Cashbook without duplicating recorded transactions
 - Share business data with invited team members using Owner, Manager, Staff, and Viewer roles
 - Compare daily, weekly, monthly, and yearly sales, expenses, and profit
 - Rank top customers and best-selling products; review tracked product margins

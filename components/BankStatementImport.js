@@ -35,6 +35,29 @@ function daysBetween(left, right) {
   return Math.abs((Date.parse(`${left}T00:00:00Z`) - Date.parse(`${right}T00:00:00Z`)) / 86400000);
 }
 
+async function parsePdfFile(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await fetch('/api/cashbook/parse-bank-statement', { method: 'POST', body: formData });
+  const result = await response.json();
+  if (!response.ok) {
+    throw new Error(result.error || 'Could not read the PDF.');
+  }
+
+  const lines = (result.rows || []).filter((line) => line.some((cell) => parseDate(cell)));
+  if (!lines.length) {
+    throw new Error('No transaction rows found. Make sure this PDF contains selectable text and a date column.');
+  }
+  if (lines.length > 5000) {
+    throw new Error('This file has more than 5,000 transaction rows. Split it into smaller files and try again.');
+  }
+
+  const columnCount = Math.max(...lines.map((line) => line.length));
+  const fields = Array.from({ length: columnCount }, (_, index) => `Column ${index + 1}`);
+  const rows = lines.map((line) => Object.fromEntries(fields.map((field, index) => [field, line[index] || ''])));
+  return { fields, rows };
+}
+
 function fieldSelect(label, value, fields, onChange) {
   return (
     <label className="flex flex-col gap-1 text-xs font-semibold text-slate-600">
@@ -64,6 +87,37 @@ export default function BankStatementImport({ supabase, userId, canWrite }) {
     setReviewRows([]);
   }
 
+  function setParsedRows(columns, parsedRows) {
+    if (!parsedRows.length) {
+      setError('The file has no transaction rows.');
+      return;
+    }
+    if (parsedRows.length > 5000) {
+      setError('This file has more than 5,000 rows. Split it into smaller files and try again.');
+      return;
+    }
+
+    setFields(columns);
+    setRows(parsedRows);
+    const normalizedHeaders = columns.map((field) => [field, field.toLowerCase().replace(/[^a-z]/g, '')]);
+    const findField = (terms) => normalizedHeaders.find(([, normalized]) => terms.includes(normalized))?.[0] || '';
+    const dateField = findField(['date', 'transactiondate', 'valuedate', 'posteddate'])
+      || columns.find((field) => parsedRows.slice(0, 20).filter((row) => parseDate(row[field])).length >= Math.min(3, parsedRows.length))
+      || '';
+    const dateIndex = columns.indexOf(dateField);
+
+    setMapping({
+      date: dateField,
+      description: findField(['description', 'details', 'memo', 'narration', 'transactiondescription'])
+        || columns[dateIndex + 1]
+        || '',
+      amountMode: 'signed',
+      amount: findField(['amount', 'transactionamount', 'value']),
+      debit: findField(['debit', 'withdrawal', 'withdrawals']),
+      credit: findField(['credit', 'deposit', 'deposits']),
+    });
+  }
+
   function handleFile(event) {
     const file = event.target.files?.[0];
     event.target.value = '';
@@ -74,6 +128,15 @@ export default function BankStatementImport({ supabase, userId, canWrite }) {
     setReviewRows([]);
     setRows([]);
     setFileName(file.name);
+    if (file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf') {
+      setBusy(true);
+      parsePdfFile(file)
+        .then(({ fields: columns, rows: parsedRows }) => setParsedRows(columns, parsedRows))
+        .catch((parseError) => setError(`Could not read the PDF: ${parseError.message || 'Unknown PDF error.'}`))
+        .finally(() => setBusy(false));
+      return;
+    }
+
     Papa.parse(file, {
       header: true,
       skipEmptyLines: 'greedy',
@@ -83,27 +146,8 @@ export default function BankStatementImport({ supabase, userId, canWrite }) {
           return;
         }
         const parsedRows = result.data.filter((row) => Object.values(row).some((value) => String(value ?? '').trim()));
-        if (!parsedRows.length) {
-          setError('The CSV has no transaction rows.');
-          return;
-        }
-        if (parsedRows.length > 5000) {
-          setError('This file has more than 5,000 rows. Split it into smaller CSV files and try again.');
-          return;
-        }
         const columns = result.meta.fields || Object.keys(parsedRows[0] || {});
-        setFields(columns);
-        setRows(parsedRows);
-        const normalizedHeaders = columns.map((field) => [field, field.toLowerCase().replace(/[^a-z]/g, '')]);
-        const findField = (terms) => normalizedHeaders.find(([, normalized]) => terms.includes(normalized))?.[0] || '';
-        setMapping({
-          date: findField(['date', 'transactiondate', 'valuedate', 'posteddate']),
-          description: findField(['description', 'details', 'memo', 'narration', 'transactiondescription']),
-          amountMode: 'signed',
-          amount: findField(['amount', 'transactionamount', 'value']),
-          debit: findField(['debit', 'withdrawal', 'withdrawals']),
-          credit: findField(['credit', 'deposit', 'deposits']),
-        });
+        setParsedRows(columns, parsedRows);
       },
       error: (parseError) => setError(`Could not read the CSV: ${parseError.message}`),
     });
@@ -244,11 +288,12 @@ export default function BankStatementImport({ supabase, userId, canWrite }) {
   return (
     <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
       <h2 className="text-lg font-semibold text-slate-900">Import bank statement</h2>
-      <p className="mt-1 text-sm text-slate-600">Upload a CSV, map its columns, review suggested matches, and import unmatched rows as bank cashbook adjustments.</p>
+      <p className="mt-1 text-sm text-slate-600">Upload a CSV or text-based PDF, map its columns, review suggested matches, and import unmatched rows as bank cashbook adjustments. Scanned PDFs are not supported.</p>
       <label className="mt-4 flex flex-col gap-1.5 text-xs font-semibold text-slate-600">
-        Bank CSV file
-        <input type="file" accept=".csv,text/csv" onChange={handleFile} className="text-sm font-normal" />
+        Bank statement file (CSV or PDF)
+        <input type="file" accept=".csv,text/csv,.pdf,application/pdf" onChange={handleFile} className="text-sm font-normal" />
       </label>
+      {busy && !rows.length && <p role="status" className="mt-3 text-sm text-slate-600">Reading bank statement...</p>}
       {fileName && rows.length > 0 && (
         <div className="mt-4 space-y-4">
           <p className="text-sm font-medium text-slate-700">{fileName} · {rows.length} row(s)</p>
