@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '../../lib/supabaseClient';
 import { getBusinessContext } from '../../lib/businessContext';
+import BusinessTeamOverview from '../../components/BusinessTeamOverview';
 import StatCard from '../../components/StatCard';
 import { getInvoiceBalance } from '../../lib/invoiceBalance';
 
@@ -128,6 +129,8 @@ export default function DashboardPage() {
           Overview
         </span>
       </div>
+
+      <BusinessTeamOverview />
 
       {loading ? (
         <div role="status" className="space-y-5" aria-label="Loading overview">

@@ -8,12 +8,15 @@ create table if not exists public.business_memberships (
   id uuid primary key default gen_random_uuid(),
   business_id uuid not null references public.businesses(id) on delete cascade,
   user_id uuid unique references auth.users(id) on delete cascade,
+  member_name text not null default '',
   email text not null,
   role text not null check (role in ('owner', 'manager', 'staff', 'viewer')),
   status text not null default 'active' check (status in ('active', 'pending')),
   invited_by uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now()
 );
+alter table public.business_memberships
+  add column if not exists member_name text not null default '';
 
 create unique index if not exists business_memberships_email_idx
   on public.business_memberships(business_id, lower(email));
@@ -993,7 +996,8 @@ create trigger z_accept_business_invitation
 after insert on auth.users
 for each row execute function public.accept_business_invitation();
 
-create or replace function public.invite_business_member(p_email text, p_role text)
+drop function if exists public.invite_business_member(text, text);
+create or replace function public.invite_business_member(p_email text, p_role text, p_name text)
 returns table (membership_id uuid, invited_email text, member_role text, invitation_status text)
 language plpgsql
 security definer
@@ -1009,6 +1013,9 @@ begin
   end if;
   if email_value !~* '^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$' then
     raise exception 'Enter a valid email address';
+  end if;
+  if nullif(trim(p_name), '') is null or length(trim(p_name)) > 120 then
+    raise exception 'Enter a teammate name of 1 to 120 characters';
   end if;
   if p_role not in ('manager', 'staff', 'viewer') then
     raise exception 'Choose manager, staff, or viewer for the new member';
@@ -1032,11 +1039,12 @@ begin
 
   select u.id into user_id_value from auth.users u where lower(u.email) = email_value limit 1;
   return query
-  insert into public.business_memberships (business_id, user_id, email, role, status, invited_by)
-  values (business_id_value, user_id_value, email_value, p_role,
+  insert into public.business_memberships (business_id, user_id, member_name, email, role, status, invited_by)
+  values (business_id_value, user_id_value, trim(p_name), email_value, p_role,
     case when user_id_value is null then 'pending' else 'active' end, auth.uid())
   on conflict (business_id, (lower(email))) do update
     set role = excluded.role,
+        member_name = excluded.member_name,
         user_id = coalesce(public.business_memberships.user_id, excluded.user_id),
         status = case when coalesce(public.business_memberships.user_id, excluded.user_id) is null then 'pending' else 'active' end,
         invited_by = excluded.invited_by
@@ -1047,7 +1055,7 @@ begin
 end;
 $$;
 
-revoke all on function public.invite_business_member(text, text) from public, anon;
-grant execute on function public.invite_business_member(text, text) to authenticated;
+revoke all on function public.invite_business_member(text, text, text) from public, anon;
+grant execute on function public.invite_business_member(text, text, text) to authenticated;
 
 notify pgrst, 'reload schema';

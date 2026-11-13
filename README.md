@@ -60,7 +60,9 @@ Admins should always have access to business data, even when subscription entitl
 
 The script requests a PostgREST schema-cache refresh. If Supabase still reports a missing function immediately afterward, run `NOTIFY pgrst, 'reload schema';` in the SQL Editor and retry. The app blocks writes without a valid authenticated session.
 
-If Team access shows `Could not find the function public.get_business_role_features`, run `supabase/repair_business_role_feature_functions.sql` in the Supabase SQL Editor, then reload the app. This repairs the feature-permission RPCs and refreshes the PostgREST schema cache; it does not replace the full `supabase/team_feature_permissions.sql` migration, which also installs the feature access policies and triggers.
+If Team access reports a missing `public.get_business_role_features` function, run the full `supabase/repair_business_role_feature_functions.sql` in the Supabase SQL Editor, then reload the app. This repairs the feature-permission RPCs and refreshes the PostgREST schema cache; it does not replace the full `supabase/team_feature_permissions.sql` migration, which also installs the feature access policies and triggers.
+
+The Admin dashboard shows Manager, Staff, and Viewer counts, names, email addresses, invitation status, and added dates. To support saved teammate names and invitations on an existing project, run `supabase/repair_business_member_directory.sql` after the shared-business migration. The `supabase/shared_businesses_bank_import.sql` migration includes this change for new setups. Only the Admin can view or change feature access by role.
 
 ## Paystack API endpoints
 - POST /api/paystack/initialize

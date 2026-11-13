@@ -26,7 +26,7 @@ function getRoleFeatureRpcError(error) {
     || error?.message?.includes('set_business_role_features');
 
   if (missingFunction) {
-    return 'Team feature settings are unavailable. Please try again later.';
+    return 'Supabase is missing the role-feature function or has a stale schema cache. Run supabase/repair_business_role_feature_functions.sql in the Supabase SQL Editor, then reload the app.';
   }
 
   return error?.message || 'Unknown Supabase error.';
@@ -38,6 +38,7 @@ export default function BusinessTeamManager() {
   const [role, setRole] = useState('');
   const [members, setMembers] = useState([]);
   const [roleFeatures, setRoleFeatures] = useState({});
+  const [memberName, setMemberName] = useState('');
   const [email, setEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('staff');
   const [loading, setLoading] = useState(true);
@@ -49,7 +50,7 @@ export default function BusinessTeamManager() {
   async function loadTeam(activeBusinessId) {
     const { data, error: loadError } = await supabase
       .from('business_memberships')
-      .select('id, email, role, status, user_id, created_at')
+      .select('id, member_name, email, role, status, user_id, created_at')
       .eq('business_id', activeBusinessId)
       .order('created_at');
     if (loadError) throw new Error(`Could not load team members: ${loadError.message}`);
@@ -92,7 +93,7 @@ export default function BusinessTeamManager() {
       const response = await fetch('/api/business/invitations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, role: inviteRole }),
+        body: JSON.stringify({ name: memberName, email, role: inviteRole }),
       });
       const result = await response.json();
       if (!response.ok) {
@@ -106,6 +107,7 @@ export default function BusinessTeamManager() {
         setMessage(result.message || 'Invitation email sent.');
         setError('');
       }
+      setMemberName('');
       setEmail('');
       try {
         const { business_id: businessId } = await getBusinessContext(supabase, userId);
@@ -128,7 +130,7 @@ export default function BusinessTeamManager() {
       const response = await fetch('/api/business/invitations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: member.email, role: member.role }),
+        body: JSON.stringify({ name: member.member_name, email: member.email, role: member.role }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Could not resend the invitation.');
@@ -186,6 +188,29 @@ export default function BusinessTeamManager() {
     setBusyId('');
   }
 
+  async function saveMemberName(member) {
+    const name = member.member_name.trim();
+    if (!name) {
+      setError('Enter a teammate name before saving.');
+      return;
+    }
+
+    setBusyId(member.id);
+    setError('');
+    setMessage('');
+    const { error: updateError } = await supabase
+      .from('business_memberships')
+      .update({ member_name: name })
+      .eq('id', member.id);
+    if (updateError) {
+      setError(`Could not save teammate name: ${updateError.message}`);
+    } else {
+      setMembers((current) => current.map((item) => item.id === member.id ? { ...item, member_name: name } : item));
+      setMessage(`Name saved for ${name}.`);
+    }
+    setBusyId('');
+  }
+
   async function removeMember(member) {
     if (!window.confirm(`Remove ${member.email} from this business? Their account and existing business records will not be deleted.`)) return;
     setBusyId(member.id);
@@ -211,7 +236,11 @@ export default function BusinessTeamManager() {
         <p className="mt-1 text-sm text-slate-600">The first account for a business is its Admin and has full access. Admin access cannot be granted by invitation; invite teammates as Manager, Staff, or Viewer. The Admin’s subscription covers the team.</p>
       </div>
       {canManageBusiness(role) && (
-        <form onSubmit={inviteMember} className="grid gap-3 sm:grid-cols-[1fr_180px_auto]">
+        <form onSubmit={inviteMember} className="grid gap-3 sm:grid-cols-[1fr_1fr_180px_auto]">
+          <label className="flex flex-col gap-1 text-xs font-semibold text-slate-600">
+            Teammate name
+            <input className="input" type="text" autoComplete="name" required value={memberName} onChange={(event) => setMemberName(event.target.value)} />
+          </label>
           <label className="flex flex-col gap-1 text-xs font-semibold text-slate-600">
             Teammate email
             <input className="input" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} />
@@ -234,9 +263,36 @@ export default function BusinessTeamManager() {
           {members.map((member) => (
             <li key={member.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
               <div>
-                <p className="text-sm font-semibold text-slate-800">{member.email}{member.user_id === userId ? ' · You' : ''}</p>
-                <p className="text-xs text-slate-500">{member.status === 'pending' ? 'Invitation pending' : roleLabels[member.role]}</p>
+                <p className="text-sm font-semibold text-slate-800">{member.member_name || member.email}{member.user_id === userId ? ' · You' : ''}</p>
+                <p className="text-xs text-slate-500">{member.email} · {roleLabels[member.role]}</p>
+                <p className="text-xs text-slate-500">
+                  {member.status === 'pending' ? 'Invitation pending · ' : 'Added '}
+                  {new Date(member.created_at).toLocaleDateString()}
+                </p>
               </div>
+              {role === 'owner' && member.role !== 'owner' && (
+                <div className="flex items-center gap-2">
+                  <label className="sr-only" htmlFor={`member-name-${member.id}`}>Name for {member.email}</label>
+                  <input
+                    id={`member-name-${member.id}`}
+                    className="input min-h-10 py-2 text-sm"
+                    value={member.member_name}
+                    placeholder="Add teammate name"
+                    maxLength={120}
+                    onChange={(event) => setMembers((current) => current.map((item) => (
+                      item.id === member.id ? { ...item, member_name: event.target.value } : item
+                    )))}
+                  />
+                  <button
+                    type="button"
+                    className="text-sm font-semibold text-brand-700 disabled:opacity-50"
+                    onClick={() => saveMemberName(member)}
+                    disabled={busyId === member.id || !member.member_name.trim()}
+                  >
+                    Save name
+                  </button>
+                </div>
+              )}
               {canManageBusiness(role) && member.role !== 'owner' && (
                 <div className="flex items-center gap-3">
                   {member.status === 'pending' && (

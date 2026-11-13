@@ -63,10 +63,11 @@ export async function POST(request) {
     } catch {
       return NextResponse.json({ error: 'The invitation request must contain valid JSON.' }, { status: 400 });
     }
+    const name = typeof body.name === 'string' ? body.name.trim() : '';
     const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
     const role = body.role;
-    if (!email || !['manager', 'staff', 'viewer'].includes(role)) {
-      return NextResponse.json({ error: 'Enter an email address and choose Manager, Staff, or Viewer. Admin access cannot be granted by invitation.' }, { status: 400 });
+    if (!name || name.length > 120 || !email || !['manager', 'staff', 'viewer'].includes(role)) {
+      return NextResponse.json({ error: 'Enter the teammate’s name and email address, and choose Manager, Staff, or Viewer. Admin access cannot be granted by invitation.' }, { status: 400 });
     }
 
     const supabase = createServerSupabaseClient();
@@ -104,6 +105,7 @@ export async function POST(request) {
     const { data: invitationRows, error: inviteError } = await supabase.rpc('invite_business_member', {
       p_email: email,
       p_role: role,
+      p_name: name,
     });
     if (inviteError) {
       return NextResponse.json({ error: inviteError.message }, { status: 400 });
@@ -122,7 +124,7 @@ export async function POST(request) {
     signupUrl.searchParams.set('email', email);
     const loginUrl = new URL('/login', baseUrl);
     loginUrl.searchParams.set('email', email);
-    const recipientName = escapeHtml(email);
+    const recipientName = escapeHtml(name);
     const businessName = escapeHtml(business.name);
     const roleName = escapeHtml(role[0].toUpperCase() + role.slice(1));
     const action = isPending ? 'View invitation and create account' : 'View invitation and sign in';
