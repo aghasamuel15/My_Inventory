@@ -57,6 +57,7 @@ const emptyProduct = {
 export default function InventoryPage() {
   const supabase = createClient();
   const [products, setProducts] = useState([]);
+  const [allProducts, setAllProducts] = useState([]);
   const [movements, setMovements] = useState([]);
   const [recentSalesByProduct, setRecentSalesByProduct] = useState({});
   const [form, setForm] = useState(emptyProduct);
@@ -64,6 +65,7 @@ export default function InventoryPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [businessRole, setBusinessRole] = useState('');
+  const [deletingProductId, setDeletingProductId] = useState('');
 
   async function load() {
     setLoading(true);
@@ -80,11 +82,12 @@ export default function InventoryPage() {
     date30DaysAgo.setDate(date30DaysAgo.getDate() - 30);
     const salesStartDate = date30DaysAgo.toLocaleDateString('en-CA');
     const [{ data: productData }, { data: movementData }, { data: salesData }] = await Promise.all([
-      supabase.from('inventory_products').select('*').eq('user_id', businessId).eq('is_active', true).order('name'),
+      supabase.from('inventory_products').select('*').eq('user_id', businessId).order('name'),
       supabase.from('inventory_movements').select('*').eq('user_id', businessId).order('created_at', { ascending: false }).limit(40),
       supabase.from('sales').select('product_id, quantity').eq('user_id', businessId).gte('sale_date', salesStartDate),
     ]);
-    setProducts(productData || []);
+    setAllProducts(productData || []);
+    setProducts((productData || []).filter((product) => product.is_active));
     setMovements(movementData || []);
     setRecentSalesByProduct((salesData || []).reduce((totals, sale) => {
       if (sale.product_id) totals[sale.product_id] = (totals[sale.product_id] || 0) + Number(sale.quantity || 0);
@@ -168,14 +171,21 @@ export default function InventoryPage() {
   }
 
   async function handleArchive(product) {
-    if (!confirm(`Stop tracking ${product.name}? Its past sales and stock history will remain.`)) return;
+    if (!confirm(`Delete ${product.name} from active stock? Its current quantity, past sales, and stock movement history will remain archived.`)) return;
+    setDeletingProductId(product.id);
     const { error } = await supabase.from('inventory_products').update({ is_active: false }).eq('id', product.id);
-    if (error) alert(error.message);
-    else await load();
+    setDeletingProductId('');
+    if (error) alert(`Could not delete product: ${error.message}`);
+    else {
+      if (adjustment.product_id === product.id) {
+        setAdjustment({ product_id: '', action: 'add', quantity: '', reason: '' });
+      }
+      await load();
+    }
   }
 
   const lowStockCount = products.filter((product) => Number(product.quantity) <= Number(product.low_stock_threshold)).length;
-  const productName = (productId) => products.find((product) => product.id === productId)?.name || 'Archived product';
+  const productName = (productId) => allProducts.find((product) => product.id === productId)?.name || 'Archived product';
   const suggestedRestock = (product) => {
     const targetStock = Number(product.low_stock_threshold) + Number(recentSalesByProduct[product.id] || 0);
     return Math.max(0, Math.ceil((targetStock - Number(product.quantity)) * 100) / 100);
@@ -297,7 +307,7 @@ export default function InventoryPage() {
                       <td className="text-right">{formatNaira(product.selling_price)}</td>
                       <td className="text-right text-emerald-700">{formatNaira(Number(product.selling_price) - Number(product.cost_price))}</td>
                       <td>{canWriteBusinessData(businessRole) && suggestedRestock(product) > 0 ? <button type="button" onClick={() => useRestockSuggestion(product)} className="font-semibold text-amber-800 hover:underline">{suggestedRestock(product)} {product.unit} · Use</button> : '—'}</td>
-                      <td className="text-right">{canManageBusiness(businessRole) && <button type="button" disabled={Number(product.quantity) > 0} title={Number(product.quantity) > 0 ? 'Remove remaining stock before archiving' : 'Archive product'} onClick={() => handleArchive(product)} className="text-xs font-semibold text-slate-500 enabled:hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40">Archive</button>}</td>
+                      <td className="text-right">{canManageBusiness(businessRole) && <button type="button" disabled={deletingProductId === product.id} title="Remove from active stock; retain its history" onClick={() => handleArchive(product)} className="text-xs font-semibold text-red-600 hover:text-red-800 disabled:cursor-wait disabled:opacity-50">{deletingProductId === product.id ? 'Deleting...' : 'Delete'}</button>}</td>
                     </tr>
                   );
                 })}
@@ -345,7 +355,7 @@ export default function InventoryPage() {
                     </div>
                   )}
                   {canManageBusiness(businessRole) && <div className="mt-3 border-t border-slate-100 pt-3 text-right">
-                    <button type="button" disabled={Number(product.quantity) > 0} title={Number(product.quantity) > 0 ? 'Remove remaining stock before archiving' : 'Archive product'} onClick={() => handleArchive(product)} className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-500 enabled:hover:bg-red-50 enabled:hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40">Archive product</button>
+                    <button type="button" disabled={deletingProductId === product.id} title="Remove from active stock; retain its history" onClick={() => handleArchive(product)} className="rounded-lg px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-wait disabled:opacity-50">{deletingProductId === product.id ? 'Deleting...' : 'Delete product'}</button>
                   </div>}
                 </article>
               );

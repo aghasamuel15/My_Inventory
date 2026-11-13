@@ -1,14 +1,17 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { createClient } from '../../lib/supabaseClient';
 
 export default function SignupPage() {
+  const router = useRouter();
   const [form, setForm] = useState({ business_name: '', email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [invitationEmail, setInvitationEmail] = useState('');
+  const [confirmationRequired, setConfirmationRequired] = useState(false);
 
   useEffect(() => {
     const invitedEmail = new URLSearchParams(window.location.search).get('email')?.trim() || '';
@@ -24,11 +27,13 @@ export default function SignupPage() {
 
     try {
       const supabase = createClient();
+      const emailRedirectTo = new URL('/auth/callback?next=%2Fdashboard', window.location.origin).toString();
       const { data, error } = await supabase.auth.signUp({
         email: form.email,
         password: form.password,
         options: {
           data: { business_name: form.business_name },
+          emailRedirectTo,
         },
       });
 
@@ -39,8 +44,15 @@ export default function SignupPage() {
       }
 
       if (data?.user) {
+        if (data.session) {
+          router.replace('/dashboard');
+          router.refresh();
+          return;
+        }
+
         setLoading(false);
-        setMessage('Account created. Check your email to confirm your account, then sign in using the invited email address.');
+        setConfirmationRequired(true);
+        setMessage(`Account created. Check ${form.email} and click the confirmation link to open your dashboard.`);
         return;
       }
 
@@ -88,22 +100,28 @@ export default function SignupPage() {
             SME Tracker
           </Link>
           <div className="mb-6">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#927b56]">Let’s get started</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-[-0.055em] text-[#20372c]">Create your account</h1>
-            <p className="mt-2 text-sm text-[#738078]">A few details, then your workspace is ready.</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#927b56]">
+              {confirmationRequired ? 'One last step' : 'Let’s get started'}
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-[-0.055em] text-[#20372c]">
+              {confirmationRequired ? 'Check your email' : 'Create your account'}
+            </h1>
+            <p className="mt-2 text-sm text-[#738078]">
+              {confirmationRequired ? 'Confirm your email address to continue to your dashboard.' : 'A few details, then your workspace is ready.'}
+            </p>
           </div>
 
-          {invitationEmail && (
+          {!confirmationRequired && invitationEmail && (
             <p className="mb-4 rounded-2xl border border-[#dce8df] bg-[#f1f7f1] px-4 py-3 text-sm leading-6 text-[#315d48]">
               You’re joining a business on SME Tracker. Use the invited email address to activate the role selected by the business Admin. Admin access is reserved for the first account that creates a business.
             </p>
           )}
-          {!invitationEmail && (
+          {!confirmationRequired && !invitationEmail && (
             <p className="mb-4 rounded-2xl border border-[#dce8df] bg-[#f1f7f1] px-4 py-3 text-sm leading-6 text-[#315d48]">
               The first account becomes the business Admin with full access. Teammates can be invited later as Manager, Staff, or Viewer.
             </p>
           )}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          {!confirmationRequired && <form onSubmit={handleSubmit} className="space-y-4">
             {!invitationEmail && (
               <div>
                 <label className="label">Business name</label>
@@ -124,7 +142,11 @@ export default function SignupPage() {
             <button type="submit" disabled={loading} className="btn-primary mt-2 w-full">
               {loading ? 'Creating account...' : 'Create account'}
             </button>
-          </form>
+          </form>}
+
+          {confirmationRequired && message && (
+            <div role="status" className="rounded-xl border border-[#dce8df] bg-[#f3f7f3] px-4 py-3 text-sm leading-6 text-[#315d48]">{message}</div>
+          )}
 
           <div className="mt-6 border-t border-[#edf0eb] pt-5 text-center text-sm text-[#738078]">
             Already have an account?{' '}

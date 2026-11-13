@@ -28,7 +28,11 @@ function LoginForm() {
   const [email, setEmail] = useState(invitationEmail);
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState(() => (
+    searchParams.get('error') === 'confirmation'
+      ? 'The confirmation link is invalid or expired. Sign up again or sign in if your email is already confirmed.'
+      : ''
+  ));
 
   async function handleSubmit(event) {
     event.preventDefault();
