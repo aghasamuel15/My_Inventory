@@ -6,6 +6,7 @@ export default function InvitationPage({ searchParams }) {
   const encodedEmail = encodeURIComponent(email);
   const signupHref = email ? `/signup?email=${encodedEmail}` : '/signup';
   const loginHref = email ? `/login?email=${encodedEmail}` : '/login';
+  const forgotPasswordHref = email ? `/forgot-password?email=${encodedEmail}` : '/forgot-password';
   const primaryHref = isPending ? signupHref : loginHref;
   const primaryLabel = isPending ? 'Create account' : 'Sign in to account';
   const secondaryHref = isPending ? loginHref : signupHref;
@@ -34,6 +35,9 @@ export default function InvitationPage({ searchParams }) {
           </Link>
           <Link href={secondaryHref} className="btn-secondary block w-full">
             {secondaryLabel}
+          </Link>
+          <Link href={forgotPasswordHref} className="text-sm font-semibold text-brand-700 hover:underline">
+            Forgot your password?
           </Link>
         </div>
         <p className="mt-5 text-xs leading-5 text-slate-500">

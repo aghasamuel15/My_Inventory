@@ -18,13 +18,17 @@ export async function GET(request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
   const flowId = requestUrl.searchParams.get('sb_flow_id');
+  const tokenHash = requestUrl.searchParams.get('token_hash');
+  const otpType = requestUrl.searchParams.get('type');
   const destination = new URL(getSafeNextPath(requestUrl.searchParams.get('next')), request.url);
   const errorDestination = destination.pathname === '/reset-password'
     ? new URL('/reset-password?error=invalid_link', request.url)
     : new URL('/login?error=confirmation', request.url);
   let response = NextResponse.redirect(destination);
 
-  if (!code) {
+  const supportedOtpTypes = ['signup', 'invite', 'magiclink', 'recovery', 'email_change', 'email'];
+  const hasOtp = tokenHash && supportedOtpTypes.includes(otpType);
+  if (!code && !hasOtp) {
     return NextResponse.redirect(errorDestination);
   }
 
@@ -45,11 +49,10 @@ export async function GET(request) {
     }
   );
 
-  const { error } = await supabase.auth.exchangeCodeForSession(
-    code,
-    flowId ? { flowId } : undefined
-  );
-  if (error) {
+  const { error: authError } = code
+    ? await supabase.auth.exchangeCodeForSession(code, flowId ? { flowId } : undefined)
+    : await supabase.auth.verifyOtp({ token_hash: tokenHash, type: otpType });
+  if (authError) {
     return NextResponse.redirect(errorDestination);
   }
 

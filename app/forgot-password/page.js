@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { getPasswordResetRedirectUrl } from '../../lib/authRedirect';
 import { createClient } from '../../lib/supabaseClient';
 
 export default function ForgotPasswordPage() {
@@ -10,6 +11,11 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
+  useEffect(() => {
+    const invitedEmail = new URLSearchParams(window.location.search).get('email')?.trim();
+    if (invitedEmail) setEmail(invitedEmail);
+  }, []);
+
   async function sendResetLink(event) {
     event.preventDefault();
     setLoading(true);
@@ -17,7 +23,7 @@ export default function ForgotPasswordPage() {
     setMessage('');
     try {
       const supabase = createClient();
-      const redirectTo = new URL('/auth/callback?next=%2Freset-password', window.location.origin).toString();
+      const redirectTo = getPasswordResetRedirectUrl(window.location.origin);
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
       if (resetError) throw resetError;
       setMessage(`If an account exists for ${email}, a password reset link has been sent. Check your inbox and spam folder.`);

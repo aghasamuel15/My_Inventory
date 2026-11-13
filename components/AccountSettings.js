@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '../lib/supabaseClient';
+import { getPasswordResetRedirectUrl } from '../lib/authRedirect';
 import PasswordInput from './PasswordInput';
 import { useTheme } from './ThemeProvider';
 
@@ -73,7 +74,7 @@ export default function AccountSettings() {
 
     setSendingReset(true);
     try {
-      const redirectTo = new URL('/auth/callback?next=%2Freset-password', window.location.origin).toString();
+      const redirectTo = getPasswordResetRedirectUrl(window.location.origin);
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
       if (resetError) throw resetError;
       setResetMessage(`Password reset instructions were sent to ${email}. Check your inbox and spam folder.`);
