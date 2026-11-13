@@ -30,6 +30,9 @@ export async function POST(request) {
     const loadingTask = pdfjs.getDocument({
       data: new Uint8Array(await file.arrayBuffer()),
       useSystemFonts: true,
+      standardFontDataUrl: new URL('../../standard_fonts/', import.meta.resolve('pdfjs-dist/legacy/build/pdf.mjs')).href,
+      cMapUrl: new URL('../../cmaps/', import.meta.resolve('pdfjs-dist/legacy/build/pdf.mjs')).href,
+      cMapPacked: true,
     });
     const pdf = await loadingTask.promise;
     const rows = [];
@@ -90,6 +93,10 @@ export async function POST(request) {
     return NextResponse.json({ rows });
   } catch (error) {
     console.error('Could not parse uploaded bank statement PDF:', error);
-    return NextResponse.json({ error: 'Could not read this PDF. Make sure it is a valid, text-based bank statement.' }, { status: 400 });
+    const parserMessage = error instanceof Error ? error.message : 'Unknown PDF parser error.';
+    const errorMessage = /password/i.test(parserMessage)
+      ? 'This PDF is password-protected. Remove its password and upload it again.'
+      : `PDF parser error: ${parserMessage.slice(0, 240)}`;
+    return NextResponse.json({ error: errorMessage }, { status: 400 });
   }
 }
