@@ -135,3 +135,11 @@ revoke all on function public.set_business_role_features(text, text[]) from publ
 grant execute on function public.set_business_role_features(text, text[]) to authenticated;
 
 notify pgrst, 'reload schema';
+
+select
+  to_regprocedure('public.get_business_role_features()') is not null as function_exists,
+  has_function_privilege(
+    'authenticated',
+    'public.get_business_role_features()',
+    'execute'
+  ) as authenticated_can_execute;

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '../lib/supabaseClient';
+import PasswordInput from './PasswordInput';
 import { useTheme } from './ThemeProvider';
 
 const themeOptions = [
@@ -72,7 +73,7 @@ export default function AccountSettings() {
 
     setSendingReset(true);
     try {
-      const redirectTo = new URL('/reset-password', window.location.origin).toString();
+      const redirectTo = new URL('/auth/callback?next=%2Freset-password', window.location.origin).toString();
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
       if (resetError) throw resetError;
       setResetMessage(`Password reset instructions were sent to ${email}. Check your inbox and spam folder.`);
@@ -122,26 +123,20 @@ export default function AccountSettings() {
         <form onSubmit={changePassword} className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
             <label className="label" htmlFor="account-new-password">New password</label>
-            <input
+            <PasswordInput
               id="account-new-password"
-              className="input"
-              type="password"
               autoComplete="new-password"
               minLength={8}
-              required
               value={newPassword}
               onChange={(event) => setNewPassword(event.target.value)}
             />
           </div>
           <div>
             <label className="label" htmlFor="account-confirm-password">Confirm new password</label>
-            <input
+            <PasswordInput
               id="account-confirm-password"
-              className="input"
-              type="password"
               autoComplete="new-password"
               minLength={8}
-              required
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
             />

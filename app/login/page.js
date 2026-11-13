@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
+import PasswordInput from '../../components/PasswordInput';
 import { createClient } from '../../lib/supabaseClient';
 
 function getSafeNextPath(next) {
@@ -105,10 +106,15 @@ function LoginForm() {
             </div>
             <div>
               <div className="mb-2 flex items-center justify-between gap-2">
-                <label className="label mb-0">Password</label>
+                <label className="label mb-0" htmlFor="password">Password</label>
                 <Link href="/forgot-password" className="text-xs font-semibold text-[#176b52] hover:underline">Forgot password?</Link>
               </div>
-              <input className="input" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+              <PasswordInput
+                id="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
             </div>
 
             {message && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{message}</div>}

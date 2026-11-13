@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import PasswordInput from '../../components/PasswordInput';
 import { createClient } from '../../lib/supabaseClient';
 
 export default function SignupPage() {
@@ -133,8 +134,15 @@ export default function SignupPage() {
               <input className="input" type="email" autoComplete="email" required value={form.email} readOnly={Boolean(invitationEmail)} onChange={(e) => setForm({ ...form, email: e.target.value })} />
             </div>
             <div>
-              <label className="label">Password</label>
-              <input className="input" type="password" autoComplete="new-password" required minLength={6} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+              <label className="label" htmlFor="password">Password</label>
+              <PasswordInput
+                id="password"
+                autoComplete="new-password"
+                required
+                minLength={6}
+                value={form.password}
+                onChange={(event) => setForm({ ...form, password: event.target.value })}
+              />
             </div>
 
             {message && <div role="status" className="rounded-xl border border-[#dce8df] bg-[#f3f7f3] px-4 py-3 text-sm leading-6 text-[#315d48]">{message}</div>}

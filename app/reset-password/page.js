@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import PasswordInput from '../../components/PasswordInput';
 import { createClient } from '../../lib/supabaseClient';
 
 export default function ResetPasswordPage() {
@@ -18,12 +19,18 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     let active = true;
-    supabase.auth.getSession().then(({ data, error: sessionError }) => {
-      if (!active) return;
-      if (sessionError) setError(`Could not verify the reset link: ${sessionError.message}`);
-      setValidLink(Boolean(data.session));
-      setCheckingLink(false);
-    });
+    supabase.auth.getSession()
+      .then(({ data, error: sessionError }) => {
+        if (!active) return;
+        if (sessionError) setError(`Could not verify the reset link: ${sessionError.message}`);
+        setValidLink(Boolean(data.session));
+        setCheckingLink(false);
+      })
+      .catch((sessionError) => {
+        if (!active) return;
+        setError(`Could not verify the reset link: ${sessionError.message || 'Please try again.'}`);
+        setCheckingLink(false);
+      });
     return () => { active = false; };
   }, [supabase]);
 
@@ -70,18 +77,30 @@ export default function ResetPasswordPage() {
           <p role="status" className="mt-5 text-sm text-[#738078]">Verifying your secure reset link…</p>
         ) : !validLink ? (
           <div className="mt-5 rounded-2xl border border-[#f0dfc0] bg-[#fbf6eb] p-4 text-sm leading-6 text-[#805f2f]">
-            This password reset link is invalid or has expired. Request a new link to continue.
+            {error || 'This password reset link is invalid or has expired. Request a new link to continue.'}
             <Link href="/forgot-password" className="mt-3 inline-flex font-semibold underline">Request a new link</Link>
           </div>
         ) : (
           <form onSubmit={updatePassword} className="mt-6 space-y-4">
             <div>
               <label htmlFor="new-password" className="label">New password</label>
-              <input id="new-password" className="input" type="password" autoComplete="new-password" minLength={8} required value={password} onChange={(event) => setPassword(event.target.value)} />
+              <PasswordInput
+                id="new-password"
+                autoComplete="new-password"
+                minLength={8}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
             </div>
             <div>
               <label htmlFor="confirm-password" className="label">Confirm new password</label>
-              <input id="confirm-password" className="input" type="password" autoComplete="new-password" minLength={8} required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
+              <PasswordInput
+                id="confirm-password"
+                autoComplete="new-password"
+                minLength={8}
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+              />
             </div>
             {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
             {message && <p role="status" className="rounded-xl border border-[#dce8df] bg-[#f1f7f1] px-4 py-3 text-sm text-[#315d48]">{message}</p>}

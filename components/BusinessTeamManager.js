@@ -21,12 +21,15 @@ const configurableFeatures = [
 const allFeatures = configurableFeatures.map((feature) => feature.id);
 
 function getRoleFeatureRpcError(error) {
-  const missingFunction = error?.code === 'PGRST202'
-    || error?.message?.includes('get_business_role_features')
-    || error?.message?.includes('set_business_role_features');
-
-  if (missingFunction) {
-    return 'Supabase is missing the role-feature function or has a stale schema cache. Run supabase/repair_business_role_feature_functions.sql in the Supabase SQL Editor, then reload the app.';
+  if (error?.code === 'PGRST202') {
+    const details = error.details || error.message;
+    return `Supabase could not find public.get_business_role_features() in its schema cache. ${details} Confirm NEXT_PUBLIC_SUPABASE_URL points to the project where the repair script was run, then run NOTIFY pgrst, 'reload schema'; in that project's SQL Editor.`;
+  }
+  if (
+    error?.message?.includes('get_business_role_features')
+    || error?.message?.includes('set_business_role_features')
+  ) {
+    return error.message;
   }
 
   return error?.message || 'Unknown Supabase error.';

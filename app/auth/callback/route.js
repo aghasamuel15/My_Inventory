@@ -17,11 +17,15 @@ function getSafeNextPath(value) {
 export async function GET(request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
+  const flowId = requestUrl.searchParams.get('sb_flow_id');
   const destination = new URL(getSafeNextPath(requestUrl.searchParams.get('next')), request.url);
+  const errorDestination = destination.pathname === '/reset-password'
+    ? new URL('/reset-password?error=invalid_link', request.url)
+    : new URL('/login?error=confirmation', request.url);
   let response = NextResponse.redirect(destination);
 
   if (!code) {
-    return NextResponse.redirect(new URL('/login?error=confirmation', request.url));
+    return NextResponse.redirect(errorDestination);
   }
 
   const supabase = createServerClient(
@@ -41,9 +45,12 @@ export async function GET(request) {
     }
   );
 
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
+  const { error } = await supabase.auth.exchangeCodeForSession(
+    code,
+    flowId ? { flowId } : undefined
+  );
   if (error) {
-    return NextResponse.redirect(new URL('/login?error=confirmation', request.url));
+    return NextResponse.redirect(errorDestination);
   }
 
   return response;
