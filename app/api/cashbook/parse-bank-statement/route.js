@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from '../../../../lib/supabaseServer';
 import { NextResponse } from 'next/server';
+import { parse as parseCsv } from 'papaparse';
 import { join, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -98,6 +99,30 @@ async function parsePdf(file) {
   return rows;
 }
 
+async function parseCsvFile(file) {
+  const csvText = await file.text();
+  const parsed = parseCsv(csvText, {
+    header: true,
+    skipEmptyLines: 'greedy',
+    transformHeader: (header) => String(header ?? '').trim(),
+    transform: (value) => (value == null ? '' : String(value).trim()),
+  });
+
+  if (parsed.errors?.length) {
+    const firstError = parsed.errors[0];
+    throw new Error(firstError.message || 'CSV parsing failed.');
+  }
+
+  const fields = parsed.meta?.fields?.length ? parsed.meta.fields : Object.keys(parsed.data[0] || {});
+  const rows = parsed.data.filter((row) => Object.values(row ?? {}).some((value) => String(value ?? '').trim()));
+
+  if (!rows.length) {
+    throw new Error('No transaction rows found. Include a header row with date, description, and amount columns.');
+  }
+
+  return { fields, rows };
+}
+
 async function parseWorkbook(file) {
   const ExcelJS = (await import('exceljs')).default;
   const workbook = new ExcelJS.Workbook();
@@ -168,15 +193,21 @@ export async function POST(request) {
   }
 
   const file = formData.get('file');
-  const extension = file?.name?.toLowerCase().split('.').pop();
-  if (!file || typeof file.arrayBuffer !== 'function' || !['pdf', 'xlsx'].includes(extension)) {
-    return NextResponse.json({ error: 'Choose a PDF or XLSX bank statement.' }, { status: 400 });
+  const extension = (file?.name?.toLowerCase().split('.').pop() || '') ||
+    (file?.type === 'text/csv' ? 'csv' : file?.type === 'application/pdf' ? 'pdf' : file?.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ? 'xlsx' : '');
+  const allowedExtensions = new Set(['csv', 'pdf', 'xlsx']);
+  if (!file || typeof file.arrayBuffer !== 'function' || !allowedExtensions.has(extension)) {
+    return NextResponse.json({ error: 'Choose a CSV, PDF, or XLSX bank statement.' }, { status: 400 });
   }
   if (file.size > 4 * 1024 * 1024) {
     return NextResponse.json({ error: 'Statement files must be 4 MB or smaller.' }, { status: 413 });
   }
 
   try {
+    if (extension === 'csv') {
+      const csvResult = await parseCsvFile(file);
+      return NextResponse.json(csvResult);
+    }
     if (extension === 'pdf') return NextResponse.json({ rows: await parsePdf(file) });
     return NextResponse.json({ sheets: await parseWorkbook(file) });
   } catch (error) {

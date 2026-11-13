@@ -6,6 +6,11 @@ import { useRouter } from 'next/navigation';
 import PasswordInput from '../../components/PasswordInput';
 import { createClient } from '../../lib/supabaseClient';
 
+function isPkceVerifierStorageError(error) {
+  const message = error?.message || error?.toString?.() || '';
+  return /code verifier.*storage|PKCE.*storage|code_verifier/i.test(message);
+}
+
 export default function ResetPasswordPage() {
   const router = useRouter();
   const [supabase] = useState(() => createClient());
@@ -22,13 +27,21 @@ export default function ResetPasswordPage() {
     supabase.auth.getSession()
       .then(({ data, error: sessionError }) => {
         if (!active) return;
-        if (sessionError) setError(`Could not verify the reset link: ${sessionError.message}`);
+        if (sessionError) {
+          const friendlyMessage = isPkceVerifierStorageError(sessionError)
+            ? 'PKCE code verifier not found in storage. This can happen if the auth flow was initiated in a different browser or device, or if the storage was cleared. For SSR frameworks (Next.js, SvelteKit, etc.), use @supabase/ssr on both the server and client to store the code verifier in cookies.'
+            : `Could not verify the reset link: ${sessionError.message}`;
+          setError(friendlyMessage);
+        }
         setValidLink(Boolean(data.session));
         setCheckingLink(false);
       })
       .catch((sessionError) => {
         if (!active) return;
-        setError(`Could not verify the reset link: ${sessionError.message || 'Please try again.'}`);
+        const friendlyMessage = isPkceVerifierStorageError(sessionError)
+          ? 'PKCE code verifier not found in storage. This can happen if the auth flow was initiated in a different browser or device, or if the storage was cleared. For SSR frameworks (Next.js, SvelteKit, etc.), use @supabase/ssr on both the server and client to store the code verifier in cookies.'
+          : `Could not verify the reset link: ${sessionError.message || 'Please try again.'}`;
+        setError(friendlyMessage);
         setCheckingLink(false);
       });
     return () => { active = false; };
@@ -76,9 +89,12 @@ export default function ResetPasswordPage() {
         {checkingLink ? (
           <p role="status" className="mt-5 text-sm text-[#738078]">Verifying your secure reset link…</p>
         ) : !validLink ? (
-          <div className="mt-5 rounded-2xl border border-[#f0dfc0] bg-[#fbf6eb] p-4 text-sm leading-6 text-[#805f2f]">
-            {error || 'This password reset link is invalid or has expired. Request a new link to continue.'}
-            <Link href="/forgot-password" className="mt-3 inline-flex font-semibold underline">Request a new link</Link>
+          <div className="mt-5 rounded-2xl border border-[#2f3d38] bg-[#12302b]/95 p-5 text-sm leading-6 text-[#edf0ed]">
+            <p className="text-lg font-semibold text-white">Link could not be verified</p>
+            <p className="mt-3 text-[#edf0ed]">
+              {error || 'This password reset link is invalid or has expired. Request a new link to continue.'}
+            </p>
+            <Link href="/forgot-password" className="mt-4 inline-flex rounded-xl bg-[#1f6a5d] px-4 py-3 font-semibold text-white hover:bg-[#2a7c6b]">Request a new link</Link>
           </div>
         ) : (
           <form onSubmit={updatePassword} className="mt-6 space-y-4">
