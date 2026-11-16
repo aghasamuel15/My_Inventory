@@ -1,7 +1,12 @@
-import { createTextStreamResponse, streamText, toTextStream } from 'ai';
+import { createTextStreamResponse, streamText } from 'ai';
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '../../../../lib/supabaseServer';
-import { APP_ASSISTANT_SYSTEM_PROMPT, validateAssistantMessages } from '../../../../lib/appAssistant';
+import {
+  APP_ASSISTANT_SYSTEM_PROMPT,
+  getAssistantErrorDetails,
+  getAssistantStreamChunk,
+  validateAssistantMessages,
+} from '../../../../lib/appAssistant';
 
 export const runtime = 'nodejs';
 
@@ -37,13 +42,27 @@ export async function POST(request) {
     messages: validation.messages,
     maxOutputTokens: 400,
     abortSignal: request.signal,
+    providerOptions: {
+      gateway: {
+        models: ['openai/gpt-4.1-mini'],
+      },
+    },
     onError({ error }) {
-      console.error('App assistant generation failed:', error instanceof Error ? error.name : 'Unknown error');
+      console.error('App assistant generation failed:', getAssistantErrorDetails(error));
     },
   });
 
+  const textStream = result.stream.pipeThrough(
+    new TransformStream({
+      transform(part, controller) {
+        const chunk = getAssistantStreamChunk(part);
+        if (chunk) controller.enqueue(chunk);
+      },
+    }),
+  );
+
   return createTextStreamResponse({
-    stream: toTextStream({ stream: result.stream }),
+    stream: textStream,
     headers: { 'Cache-Control': 'no-store' },
   });
 }

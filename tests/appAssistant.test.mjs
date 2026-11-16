@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { validateAssistantMessages } from '../lib/appAssistant.js';
+import {
+  getAssistantErrorDetails,
+  getAssistantStreamChunk,
+  validateAssistantMessages,
+} from '../lib/appAssistant.js';
 
 test('trims and accepts a bounded user-assistant conversation', () => {
   assert.deepEqual(validateAssistantMessages([
@@ -50,4 +54,26 @@ test('requires the conversation to end with a user message', () => {
     { role: 'user', content: 'Question' },
     { role: 'assistant', content: 'Answer' },
   ]).error, /latest chat message must be from the user/);
+});
+
+test('preserves text and surfaces a safe message for stream errors', () => {
+  assert.equal(getAssistantStreamChunk({ type: 'text-delta', text: 'Open Cashbook.' }), 'Open Cashbook.');
+  assert.match(getAssistantStreamChunk({ type: 'error', error: new Error('private provider details') }), /could not complete this request/);
+  assert.equal(getAssistantStreamChunk({ type: 'finish' }), '');
+});
+
+test('logs only safe diagnostic fields from gateway errors', () => {
+  const error = Object.assign(new Error('private provider details'), {
+    statusCode: 503,
+    generationId: 'generation-123',
+    isRetryable: true,
+  });
+
+  assert.deepEqual(getAssistantErrorDetails(error), {
+    name: 'Error',
+    statusCode: 503,
+    generationId: 'generation-123',
+    isRetryable: true,
+  });
+  assert.deepEqual(getAssistantErrorDetails('unexpected'), { name: 'UnknownError' });
 });
