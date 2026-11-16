@@ -60,7 +60,7 @@ test('requires the conversation to end with a user message', () => {
 
 test('preserves text and surfaces a safe message for stream errors', () => {
   assert.equal(getAssistantStreamChunk({ type: 'text-delta', text: 'Open Cashbook.' }), 'Open Cashbook.');
-  assert.match(getAssistantStreamChunk({ type: 'error', error: new Error('private provider details') }), /could not complete this request/);
+  assert.match(getAssistantStreamChunk({ type: 'error', error: new Error('private provider details') }), /trouble generating an answer/);
   assert.equal(getAssistantStreamChunk({ type: 'finish' }), '');
 });
 
