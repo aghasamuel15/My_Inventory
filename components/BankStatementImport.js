@@ -16,15 +16,39 @@ function parseAmount(value) {
 
 function parseDate(value) {
   const text = String(value ?? '').trim();
+  if (!text) return '';
+
   const dmy = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
   if (dmy) {
-    const [, first, second, year] = dmy;
-    const date = new Date(Number(year), Number(second) - 1, Number(first));
-    if (date.getFullYear() === Number(year) && date.getMonth() === Number(second) - 1 && date.getDate() === Number(first)) {
-      return `${year}-${String(second).padStart(2, '0')}-${String(first).padStart(2, '0')}`;
+    const [, firstPart, secondPart, yearText] = dmy;
+    const first = Number(firstPart);
+    const second = Number(secondPart);
+    const year = Number(yearText);
+
+    let day;
+    let month;
+
+    if (first > 12 && second <= 12) {
+      day = first;
+      month = second;
+    } else if (second > 12 && first <= 12) {
+      day = second;
+      month = first;
+    } else if (first > second) {
+      month = first;
+      day = second;
+    } else {
+      day = first;
+      month = second;
+    }
+
+    const date = new Date(year, month - 1, day);
+    if (date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day) {
+      return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     }
     return '';
   }
+
   const date = new Date(text);
   if (Number.isNaN(date.getTime())) return '';
   const year = date.getFullYear();

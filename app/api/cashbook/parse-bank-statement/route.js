@@ -10,19 +10,47 @@ const pdfjsDirectory = join(process.cwd(), 'node_modules', 'pdfjs-dist');
 const standardFontDataUrl = pathToFileURL(join(pdfjsDirectory, 'standard_fonts') + sep).href;
 const cMapUrl = pathToFileURL(join(pdfjsDirectory, 'cmaps') + sep).href;
 
-function containsDate(cells) {
-  return cells.some((cell) => {
-    const value = String(cell).trim();
-    const dmy = value.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
-    if (dmy) {
-      const [, day, month, year] = dmy;
-      const date = new Date(Number(year), Number(month) - 1, Number(day));
-      if (date.getFullYear() === Number(year) && date.getMonth() === Number(month) - 1 && date.getDate() === Number(day)) {
-        return true;
-      }
+function parseDateValue(value) {
+  const text = String(value ?? '').trim();
+  if (!text) return null;
+
+  const dmy = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (dmy) {
+    const [, firstPart, secondPart, yearText] = dmy;
+    const first = Number(firstPart);
+    const second = Number(secondPart);
+    const year = Number(yearText);
+
+    let day;
+    let month;
+
+    if (first > 12 && second <= 12) {
+      day = first;
+      month = second;
+    } else if (second > 12 && first <= 12) {
+      day = second;
+      month = first;
+    } else if (first > second) {
+      month = first;
+      day = second;
+    } else {
+      day = first;
+      month = second;
     }
-    return value !== '' && !Number.isNaN(Date.parse(value));
-  });
+
+    const date = new Date(year, month - 1, day);
+    if (date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day) {
+      return date;
+    }
+    return null;
+  }
+
+  const date = new Date(text);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function containsDate(cells) {
+  return cells.some((cell) => parseDateValue(cell) !== null);
 }
 
 function getCellText(cell) {

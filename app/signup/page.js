@@ -13,6 +13,7 @@ export default function SignupPage() {
   const [message, setMessage] = useState('');
   const [invitationEmail, setInvitationEmail] = useState('');
   const [confirmationRequired, setConfirmationRequired] = useState(false);
+  const [accountExists, setAccountExists] = useState(false);
 
   useEffect(() => {
     const invitedEmail = new URLSearchParams(window.location.search).get('email')?.trim() || '';
@@ -25,12 +26,13 @@ export default function SignupPage() {
     event.preventDefault();
     setLoading(true);
     setMessage('');
+    setAccountExists(false);
 
     try {
       const supabase = createClient();
-      const emailRedirectTo = new URL('/auth/callback?next=%2Fdashboard', window.location.origin).toString();
+      const emailRedirectTo = new URL('/auth/callback/complete?next=%2Fdashboard', window.location.origin).toString();
       const { data, error } = await supabase.auth.signUp({
-        email: form.email,
+        email: form.email.trim(),
         password: form.password,
         options: {
           data: { business_name: form.business_name },
@@ -39,7 +41,19 @@ export default function SignupPage() {
       });
 
       if (error) {
-        setMessage(error.message);
+        const alreadyRegistered = error.code === 'user_already_exists'
+          || /already (registered|exists)/i.test(error.message || '');
+        setAccountExists(alreadyRegistered);
+        setMessage(alreadyRegistered
+          ? 'An account with this email already exists. Sign in to continue.'
+          : error.message);
+        setLoading(false);
+        return;
+      }
+
+      if (data?.user?.identities?.length === 0) {
+        setAccountExists(true);
+        setMessage('An account with this email already exists. Sign in to continue.');
         setLoading(false);
         return;
       }
@@ -122,7 +136,7 @@ export default function SignupPage() {
               The first account becomes the business Admin with full access. Teammates can be invited later as Manager, Staff, or Viewer.
             </p>
           )}
-          {!confirmationRequired && <form onSubmit={handleSubmit} className="space-y-4">
+          {!confirmationRequired && !accountExists && <form onSubmit={handleSubmit} className="space-y-4">
             {!invitationEmail && (
               <div>
                 <label className="label">Business name</label>
@@ -154,6 +168,14 @@ export default function SignupPage() {
 
           {confirmationRequired && message && (
             <div role="status" className="rounded-xl border border-[#dce8df] bg-[#f3f7f3] px-4 py-3 text-sm leading-6 text-[#315d48]">{message}</div>
+          )}
+          {accountExists && message && (
+            <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+              {message}{' '}
+              <Link href={`/login?email=${encodeURIComponent(form.email.trim())}`} className="font-semibold underline">
+                Sign in
+              </Link>
+            </div>
           )}
 
           <div className="mt-6 border-t border-[#edf0eb] pt-5 text-center text-sm text-[#738078]">
