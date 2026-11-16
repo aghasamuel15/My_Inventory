@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  APP_ASSISTANT_UNAVAILABLE_REPLY,
   getAssistantErrorDetails,
+  getAssistantHelpReply,
   getAssistantStreamChunk,
   validateAssistantMessages,
 } from '../lib/appAssistant.js';
@@ -76,4 +78,15 @@ test('logs only safe diagnostic fields from gateway errors', () => {
     isRetryable: true,
   });
   assert.deepEqual(getAssistantErrorDetails('unexpected'), { name: 'UnknownError' });
+});
+
+test('provides app-specific replies for invoice and teammate questions', () => {
+  assert.match(getAssistantHelpReply('How do I create an invoive?'), /Open Invoices.*Create an invoice/);
+  assert.match(getAssistantHelpReply('How do I invite a teammate?'), /Settings → Team access.*Send invitation/);
+  assert.equal(getAssistantHelpReply('What should I ask you?'), null);
+});
+
+test('provides a visible fallback when a generation fails or returns no text', () => {
+  assert.match(getAssistantStreamChunk({ type: 'error' }), /trouble generating an answer/);
+  assert.match(APP_ASSISTANT_UNAVAILABLE_REPLY, /Please try again/);
 });

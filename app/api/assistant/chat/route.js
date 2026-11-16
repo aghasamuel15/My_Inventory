@@ -3,7 +3,9 @@ import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '../../../../lib/supabaseServer';
 import {
   APP_ASSISTANT_SYSTEM_PROMPT,
+  APP_ASSISTANT_UNAVAILABLE_REPLY,
   getAssistantErrorDetails,
+  getAssistantHelpReply,
   getAssistantStreamChunk,
   validateAssistantMessages,
 } from '../../../../lib/appAssistant';
@@ -36,6 +38,17 @@ export async function POST(request) {
     return NextResponse.json({ error: validation.error }, { status: 400 });
   }
 
+  const question = validation.messages[validation.messages.length - 1].content;
+  const helpReply = getAssistantHelpReply(question);
+  if (helpReply) {
+    return new Response(helpReply, {
+      headers: {
+        'Cache-Control': 'no-store',
+        'Content-Type': 'text/plain; charset=utf-8',
+      },
+    });
+  }
+
   const result = streamText({
     model: process.env.AI_GATEWAY_MODEL || DEFAULT_MODEL,
     system: APP_ASSISTANT_SYSTEM_PROMPT,
@@ -52,11 +65,18 @@ export async function POST(request) {
     },
   });
 
+  let hasOutput = false;
   const textStream = result.stream.pipeThrough(
     new TransformStream({
       transform(part, controller) {
         const chunk = getAssistantStreamChunk(part);
-        if (chunk) controller.enqueue(chunk);
+        if (chunk) {
+          hasOutput = true;
+          controller.enqueue(chunk);
+        }
+      },
+      flush(controller) {
+        if (!hasOutput) controller.enqueue(APP_ASSISTANT_UNAVAILABLE_REPLY);
       },
     }),
   );
