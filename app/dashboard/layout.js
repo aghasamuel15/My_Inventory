@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import Sidebar from '../../components/Sidebar';
+import AppAssistantChat from '../../components/AppAssistantChat';
 import BusinessFeatureGate from '../../components/BusinessFeatureGate';
 import { createServerSupabaseClient } from '../../lib/supabaseServer';
 
@@ -57,6 +58,7 @@ export default async function DashboardLayout({ children }) {
           </div>
         </main>
       </div>
+      <AppAssistantChat />
     </div>
   );
 }
