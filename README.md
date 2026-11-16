@@ -41,6 +41,9 @@ A Nigerian SME finance tracker for recording sales, expenses, customer debt, inv
    npm run dev
 5. Open http://localhost:3000
 
+## Tests and continuous integration
+Run the unit tests with `npm test`. GitHub Actions runs the test suite and a production build on pushes to `main`, pull requests targeting `main`, and manual workflow dispatches. The build job uses placeholder public Supabase settings and does not require production credentials.
+
 ## Supabase database
 For a new project, run the entire `supabase/schema.sql`, then `supabase/invoice_workflow.sql`, `supabase/mobile_features.sql`, and `supabase/cashbook_reconciliation.sql` in the Supabase SQL Editor. Run `supabase/shared_businesses_bank_import.sql` after those, then `supabase/team_feature_permissions.sql`, `supabase/enforce_single_business_admin.sql`, and `supabase/accounting_ledger.sql`; these add shared-business roles, bank-statement import, configurable feature access, a single-Admin constraint, and the accrual accounting ledger. For an existing project, run any missing base migrations first, then the business migrations in that order. The accounting migration backfills existing sales, expenses, invoices, invoice payments, and cashbook adjustments into balanced journal entries; run it once after the other business migrations. The first account that creates a business becomes its Admin (stored as the `owner` role) and has full business, feature, and access-entitlement permissions. Invites and role changes are limited to Manager, Staff, and Viewer; Admin cannot be granted through an invite. Each invited account can belong to one business. Managers can manage the team; Staff can enter and edit business data; Viewer is read-only. The Admin can enable or disable Sales, Inventory, Expenses, Customers, Invoices, and Reports for each teammate role; role permissions still determine whether a teammate can write. The Admin's subscription covers invited teammates.
 
